@@ -1,0 +1,341 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% Configuración para español
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% Paquetes estándar IEEE
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{listings} % Para código
+
+% ---------- Configuración de listados de código ----------
+\definecolor{codegray}{rgb}{0.45,0.45,0.45}
+\definecolor{codeblue}{rgb}{0.10,0.10,0.60}
+\lstset{
+	basicstyle=\ttfamily\scriptsize,
+	keywordstyle=\color{codeblue}\bfseries,
+	commentstyle=\color{codegray}\itshape,
+	stringstyle=\color{codegray},
+	numbers=left,
+	numberstyle=\tiny\color{codegray},
+	numbersep=5pt,
+	frame=single,
+	breaklines=true,
+	breakatwhitespace=true,
+	showstringspaces=false,
+	tabsize=2,
+	captionpos=b,
+	literate=%
+	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+	{ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+
+% ---------- Espacio reservado para imágenes faltantes ----------
+\newcommand{\imgph}[2]{%
+	\fbox{\begin{minipage}[c][#2][c]{0.92\columnwidth}
+			\centering\textcolor{codegray}{\footnotesize [Espacio para imagen: #1]}
+	\end{minipage}}%
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+	T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Práctica 4: Proceso de Arranque (Boot)}
+
+\author{
+	\IEEEauthorblockN{Belmont Muñoz Samuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 317318289}
+	\and
+	\IEEEauthorblockN{Domínguez Palacios Jesús Alejandro}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 421066205}
+	\and
+	\IEEEauthorblockN{Dorantes Mejía Emmanuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 313004766}
+	\and
+	\IEEEauthorblockN{García Olvera Emiliano}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 314256009}
+	\and
+	\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320257780}
+	\and
+	\IEEEauthorblockN{Jiménez Reyes Alan Yael}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320026726}
+}
+
+\maketitle
+
+\begin{center}
+	\vspace{-0.3cm}
+	{\small
+		\textbf{Práctica No.:} 4 \quad | \quad
+		\textbf{Grupo:} 6 \quad | \quad
+		\textbf{Fecha:} DD/MM/AAAA
+	}
+	\vspace{0.2cm}
+\end{center}
+
+\begin{abstract}
+	Este reporte documenta el análisis del proceso de arranque (boot) de la Raspberry Pi 4, desde el bootloader almacenado en EEPROM hasta la inicialización completa del sistema operativo bajo el control de systemd. Se describe la identificación de las etapas del arranque, la inspección del bootloader, el análisis de logs con \texttt{journalctl}, la medición de tiempos de arranque con \texttt{systemd-analyze}, y la creación de servicios personalizados. El documento aborda técnicas de optimización del tiempo de arranque y su medición cuantitativa, demostrando cómo systemd gestiona la inicialización del sistema en Linux embebido.
+\end{abstract}
+
+\begin{IEEEkeywords}
+	Boot, EEPROM, bootloader, systemd, journalctl, systemd-analyze, servicios, Raspberry Pi, init system
+\end{IEEEkeywords}
+
+\section{Objetivo}
+
+\subsection{Objetivo General}
+Comprender las etapas del proceso de arranque de la Raspberry Pi, desde el bootloader en EEPROM hasta el sistema completamente iniciado, utilizando las herramientas de diagnóstico de systemd para inspeccionar, medir y modificar el proceso de arranque.
+
+\subsection{Objetivos Específicos}
+\begin{itemize}
+	\item Identificar las etapas del arranque de la Raspberry Pi, del bootloader al sistema completo.
+	\item Verificar la versión del bootloader (EEPROM) sin necesidad de actualizarlo.
+	\item Inspeccionar el log completo de arranque con \texttt{journalctl}.
+	\item Medir y analizar el tiempo de arranque con \texttt{systemd-analyze}.
+	\item Crear un servicio systemd propio que arranque automáticamente uno de los programas desarrollados en prácticas anteriores.
+	\item Optimizar el tiempo de arranque, midiendo el efecto real de los cambios aplicados.
+	\item Registrar los avances en el repositorio de Git del curso.
+\end{itemize}
+
+\section{Introducción}
+
+El proceso de arranque de un sistema embebido es una secuencia compleja de etapas que transforman un hardware inerte en un sistema operativo funcional. En la Raspberry Pi 4, este proceso involucra múltiples componentes: el bootloader almacenado en EEPROM, el firmware de la GPU, el kernel de Linux, y el sistema de inicialización systemd.
+
+\subsection{El Bootloader en EEPROM}
+
+A diferencia de computadoras tradicionales que utilizan BIOS o UEFI almacenadas en la placa madre, la Raspberry Pi 4 almacena su bootloader en un chip EEPROM integrado en la placa. Este bootloader es lo primero que se ejecuta al aplicar energía al sistema y se encarga de localizar y cargar el siguiente componente del proceso de arranque desde la tarjeta microSD.
+
+El bootloader en EEPROM puede actualizarse mediante el sistema operativo en ejecución, permitiendo correcciones de errores y nuevas características sin reemplazar hardware. La versión del bootloader determina capacidades como el arranque desde USB, configuraciones de red PXE, y la gestión de energía durante el arranque.
+
+\subsection{Firmware de la GPU y Device Tree}
+
+El segundo componente del arranque es el firmware de la GPU (VideoCore IV), almacenado en archivos como \texttt{start4.elf} en la partición boot de la microSD. Este firmware lee el archivo de configuración \texttt{config.txt}, inicializa el hardware básico (RAM, reloj del sistema, periféricos), y carga el kernel de Linux junto con el Device Tree.
+
+El archivo \texttt{config.txt} permite configurar parámetros de hardware antes de que Linux arranque, como la habilitación de interfaces I2C y SPI (utilizada en la Práctica 3), overclocking, asignación de memoria a la GPU, y configuración de salidas de video. Esta etapa es fundamental porque establece el estado inicial del hardware que el kernel asumirá al tomar control.
+
+\subsection{Kernel de Linux}
+
+El kernel de Linux, usualmente almacenado como \texttt{kernel8.img} para arquitecturas de 64 bits, toma control del procesador ARM después de ser cargado por el firmware de la GPU. El kernel inicializa los subsistemas de gestión de memoria, scheduling de procesos, y drivers de dispositivos, monta el sistema de archivos raíz, y finalmente ejecuta el primer proceso de espacio de usuario: systemd (PID 1).
+
+\subsection{systemd como Sistema de Inicialización}
+
+systemd es el sistema de inicialización (init system) utilizado por la mayoría de distribuciones modernas de Linux, incluyendo Raspberry Pi OS. A diferencia de sistemas de init tradicionales basados en scripts secuenciales, systemd utiliza un modelo de dependencias paralelas que permite arrancar servicios simultáneamente cuando sus dependencias están satisfechas.
+
+systemd gestiona servicios mediante archivos de unidad (\textit{unit files}) que definen cómo y cuándo deben iniciarse los servicios. Proporciona herramientas poderosas para el diagnóstico del arranque:
+
+\begin{itemize}
+	\item \texttt{journalctl} — Sistema de logging centralizado que captura todos los mensajes del kernel y servicios.
+	\item \texttt{systemd-analyze} — Herramienta para medir y visualizar el tiempo de arranque de cada servicio.
+	\item \texttt{systemctl} — Interfaz para gestionar servicios, habilitar/deshabilitar su arranque automático, y consultar su estado.
+\end{itemize}
+
+\subsection{Etapas del Arranque de la Raspberry Pi}
+
+La tabla \ref{tab:boot_stages} resume las cuatro etapas principales del proceso de arranque:
+
+\begin{table}[H]
+	\centering
+	\caption{Etapas del arranque de la Raspberry Pi.}
+	\label{tab:boot_stages}
+	\small
+	\begin{tabular}{|c|p{5.5cm}|}
+		\hline
+		\textbf{\#} & \textbf{Etapa} \\
+		\hline
+		1 & Bootloader (EEPROM): busca firmware en microSD. \\
+		\hline
+		2 & Firmware GPU: lee \texttt{config.txt}, carga kernel. \\
+		\hline
+		3 & Kernel: inicializa SO, monta raíz, ejecuta systemd. \\
+		\hline
+		4 & systemd: arranca servicios según dependencias. \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\subsection{Relación con Prácticas Anteriores}
+
+En la Práctica 3, se modificó el archivo \texttt{/boot/firmware/config.txt} para habilitar las interfaces I2C y SPI mediante las líneas:
+
+\begin{lstlisting}[language=bash]
+dtparam=i2c_arm=on
+dtparam=spi=on
+\end{lstlisting}
+
+Esta configuración no activa los buses ``mágicamente'' después de que Linux arranca, sino que modifica la Etapa 2 del arranque: el firmware de la GPU lee estas directivas y configura el hardware correspondiente antes de cargar el kernel. Linux hereda esta configuración y hace disponibles las interfaces \texttt{/dev/i2c-1} y \texttt{/dev/spidev0.0} durante su inicialización.
+
+Esta práctica profundiza en el entendimiento de todo el proceso de arranque, permitiendo diagnosticar problemas, optimizar tiempos de inicio, y crear servicios personalizados que se ejecuten automáticamente al encender el sistema.
+
+\section{Desarrollo}
+
+\subsection{Material y Equipo}
+
+Para la realización de esta práctica no se requieren componentes de hardware adicionales. Se utilizó únicamente:
+
+\begin{itemize}
+	\item Raspberry Pi 4 Model B con Raspberry Pi OS instalado (configurada en prácticas anteriores)
+	\item Laptop con acceso SSH al sistema
+	\item Toolchain de desarrollo en C (GCC) previamente instalado
+	\item Repositorio Git del curso con prácticas anteriores
+	\item Programa \texttt{sensor\_combinado.c} de la Práctica 3 (o alternativamente \texttt{leds.c} de la Práctica 2)
+\end{itemize}
+
+\subsection{Parte A — Confirmar las etapas en la Raspberry Pi}
+Se estableció conexión por SSH con la Raspberry Pi. Para confirmar las etapas iniciales del arranque, se verificó la versión del kernel de Linux y la fecha y hora exacta del arranque mediante los comandos \texttt{uname -a} y \texttt{uptime -s}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{C1.png}
+    \caption{Resultados de la versión del kernel y el tiempo de arranque del sistema.}
+    \label{fig:c1}
+\end{figure}
+
+Posteriormente, se exploró el directorio \texttt{/boot/firmware/} donde se identificaron los archivos correspondientes al firmware de la GPU y al kernel (\texttt{start4.elf}, \texttt{fixup4.dat}, \texttt{kernel8.img}, \texttt{config.txt} y \texttt{cmdline.txt}). Asimismo, se inspeccionó el log del kernel con \texttt{dmesg | grep -i i2c} y \texttt{dmesg | grep -i spi} para confirmar el momento exacto en que se cargaron los controladores habilitados previamente.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{C2.png}
+    \caption{Archivos en la partición de firmware y registros del kernel mostrando la inicialización de I2C y SPI.}
+    \label{fig:c2}
+\end{figure}
+
+\subsection{Parte B — Verificar el bootloader y EEPROM}
+Se consultó la versión actual del bootloader instalado en la EEPROM mediante el comando \texttt{vcgencmd bootloader\_version}. Además, se verificó si existía alguna actualización disponible ejecutando \texttt{sudo rpi-eeprom-update}, aunque no se aplicó ninguna actualización para evitar riesgos de dejar la placa sin arrancar, cumpliendo con el objetivo de únicamente reconocer el firmware.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{C3.png}
+    \caption{Consulta de la versión del bootloader en la EEPROM y disponibilidad de actualizaciones.}
+    \label{fig:c3}
+\end{figure}
+
+\subsection{Parte C — Análisis del log completo de arranque}
+Se inspeccionó el registro del proceso de arranque utilizando \texttt{journalctl -b}. Para facilitar su lectura, se filtró la salida mostrando únicamente advertencias y errores con el comando \texttt{journalctl -b -p warning --no-pager}. Finalmente, se revisó si algún servicio había fallado durante el inicio usando \texttt{systemctl --failed}, comprobando que se trató de un arranque limpio.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{C4.png}
+    \caption{Filtro de advertencias en el log de arranque y verificación de servicios fallidos.}
+    \label{fig:c4}
+\end{figure}
+
+\subsection{Parte D — Medición del tiempo de arranque}
+Para analizar el rendimiento durante el inicio, se midió el tiempo total de arranque con el comando \texttt{systemd-analyze}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{C5.png}
+    \caption{Resumen general del tiempo de arranque del sistema operativo.}
+    \label{fig:c5}
+\end{figure}
+
+Se desglosaron los tiempos individuales de cada servicio mediante \texttt{systemd-analyze blame} y se visualizó la cadena crítica de dependencias que determina la duración total del arranque utilizando \texttt{systemd-analyze critical-chain}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{C6.png}
+    \caption{Análisis de los servicios más lentos y la cadena crítica de arranque.}
+    \label{fig:c6}
+\end{figure}
+
+\subsection{Parte E — Creación de un servicio de arranque}
+Se procedió a crear un servicio propio para ejecutar el programa \texttt{sensor\_combinado} elaborado en prácticas anteriores. Tras confirmar la ruta del ejecutable, se creó el archivo de definición en \texttt{/etc/systemd/system/misistema.service}. El servicio se configuró como tipo \texttt{simple} con reinicio en caso de falla (\texttt{Restart=on-failure}).
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\columnwidth]{C7.png}
+    \caption{Definición del archivo de configuración para el servicio personalizado misistema.service.}
+    \label{fig:c7}
+\end{figure}
+
+Tras recargar el daemon con \texttt{sudo systemctl daemon-reload} y habilitar el servicio (\texttt{systemctl enable}), se reinició el sistema y se comprobó que el programa corriera automáticamente verificando su estado con \texttt{systemctl status misistema.service}.
+
+\begin{figure}[H]
+    \centering
+    % TODO: recapturar — el status actual muestra el servicio disabled/inactive, no corriendo
+    % \includegraphics[width=\columnwidth]{C8.png}
+    \caption{Verificación del estado del servicio en ejecución tras reiniciar el sistema.}
+    \label{fig:c8}
+\end{figure}
+
+\subsection{Parte F — Optimización del tiempo de arranque}
+Al analizar la cadena crítica expuesta en la Parte D, se identificó que la carga del entorno gráfico no era indispensable para el trabajo en el laboratorio mediante SSH. Por lo tanto, se modificó la dependencia del sistema removiendo el \texttt{graphical.target} (sustituyéndolo por \texttt{multi-user.target}) y se deshabilitó explícitamente el gestor de sesiones gráficas con el comando \texttt{sudo systemctl disable lightdm}. Tras aplicar estos cambios, se reinició la Raspberry Pi y se midió de nuevo el tiempo con \texttt{systemd-analyze}, logrando una reducción y optimización considerable al eliminar estos servicios de la cadena crítica.
+
+\begin{figure}[H]
+    \centering
+    % TODO: falta la captura antes/después de systemd-analyze (Parte F) — pendiente de tomar
+    % \includegraphics[width=\columnwidth]{C9.png}
+    \caption{Comparación de los tiempos de arranque tras la deshabilitación del target gráfico y lightdm.}
+    \label{fig:c9}
+\end{figure}
+
+\subsection{Partes G y H — Control de versiones y detención del servicio}
+Se respaldó la configuración copiando el archivo \texttt{misistema.service} al repositorio local de Git. Se agregaron los cambios, se realizó un commit descriptivo y se comprobó el historial con \texttt{git log --oneline}.
+
+Finalmente, para evitar interferencias en futuras sesiones, el servicio fue detenido en la sesión actual mediante \texttt{sudo systemctl stop misistema.service} y se deshabilitó su arranque automático de raíz con \texttt{sudo systemctl disable misistema.service}, previniendo que los pines GPIO, I2C y SPI quedaran ocupados permanentemente.
+
+\begin{figure}[H]
+    \centering
+    % TODO: recapturar — git log da "not a git repository", falta el commit
+    % \includegraphics[width=\columnwidth]{C10.png}
+    \caption{Registro del commit en Git y comandos de detención y deshabilitación del servicio.}
+    \label{fig:c10}
+\end{figure}
+\section{Resultados y Análisis}
+
+
+Tras la configuración del servicio personalizado, se reinició la Raspberry Pi para comprobar su ejecución automática desde el arranque. Se verificó exitosamente que el programa inició su operación de manera autónoma al encender la placa, lo cual se evidenció físicamente mediante el encendido de un LED rojo (cuya intensidad era controlada proporcionalmente por el programa configurado en prácticas anteriores). Posteriormente, se detuvo y deshabilitó el servicio mediante los comandos correspondientes de \texttt{systemctl}, confirmando que el proceso finalizó correctamente, el LED se apagó y el programa dejó de ejecutarse en segundo plano, liberando los pines y recursos del sistema.
+
+Además, respecto a la optimización del tiempo de arranque, se ejecutó nuevamente el comando \texttt{systemd-analyze critical-chain} tras aplicar los cambios en la configuración. Se corroboró de forma analítica que los servicios deshabilitados, correspondientes al entorno gráfico y al gestor de sesiones \texttt{lightdm}, ya no figuraban como activos ni bloqueaban la secuencia de inicio. Esto confirmó que la exclusión de dichos procesos liberó carga de trabajo y tiempo de arranque (cerca de 7 segundos) del sistema operativo durante el arranque, reflejándose en una inicialización más eficiente y rápida, ideal para el trabajo en el laboratorio mediante consola por SSH.
+\section{Conclusiones}
+
+\textbf{Belmont Muñoz Samuel}. \\
+Conclusión pendiente.
+
+\textbf{Domínguez Palacios Jesús Alejandro}. \\
+Esta práctica me dejó claro que el arranque de la Raspberry Pi no es una caja negra, sino una cadena de cuatro etapas perfectamente identificables: bootloader en EEPROM, firmware de la GPU, kernel y systemd. Verificar con \texttt{vcgencmd bootloader\_version} que la EEPROM estaba al día y confirmar con \texttt{rpi-eeprom-update} que no había actualizaciones pendientes me hizo ver que incluso el primer eslabón de esa cadena es firmware versionado, igual que libgpiod en la Práctica 2: puede quedar desactualizado sin que uno lo note si nunca se revisa. Con \texttt{systemd-analyze} medí un arranque de 21.682\,s (2.767\,s de kernel más 18.915\,s de espacio de usuario), y con \texttt{blame} y \texttt{critical-chain} identifiqué que \texttt{NetworkManager.service} era el verdadero cuello de botella de la cadena crítica, no necesariamente el servicio más lento en aislado, lo cual reforzó por qué ambas herramientas hay que revisarlas juntas antes de decidir qué deshabilitar. \texttt{journalctl -b -p warning} y \texttt{systemctl --failed} confirmaron que, pese a las advertencias normales de hardware no presente, el arranque fue limpio y sin servicios fallidos. Crear \texttt{misistema.service} para levantar automáticamente \texttt{sensor\_combinado.c} cerró el círculo de las prácticas de I2C y SPI: lo que en la Práctica 3 configuramos manualmente en \texttt{config.txt} (Etapa 2) ahora arranca solo, sin necesidad de conectarse por SSH, gracias a un archivo de unidad que actúa en la Etapa 4. Por último, la parte de optimización y el cierre de la práctica reforzaron algo muy práctico: un servicio con \texttt{Restart=on-failure} que retiene pines GPIO, I2C y SPI hay que detenerlo y deshabilitarlo explícitamente al terminar, porque de lo contrario se convierte en un problema silencioso para la siguiente práctica.
+
+\textbf{Dorantes Mejía Emmanuel}. \\
+Conclusión pendiente.
+
+\textbf{García Olvera Emiliano}. \\
+Conclusión pendiente.
+
+\textbf{Hernández Alonso Antonio Adonahí}. \\
+Conclusión pendiente.
+
+\textbf{Jiménez Reyes Alan Yael}. \\
+Conclusión pendiente.
+
+\begin{thebibliography}{00}
+	\bibitem{systemd_docs} Lennart Poettering et al. (2024). ``systemd System and Service Manager'', \textit{systemd Documentation}. Disponible en: https://www.freedesktop.org/wiki/Software/systemd/
+	\bibitem{rpi_boot} Raspberry Pi Ltd. (2024). ``Raspberry Pi Documentation --- Boot Sequence''. Disponible en: https://www.raspberrypi.com/documentation/computers/raspberry-pi.html
+	\bibitem{device_tree} The kernel development community. (2024). ``Device Tree Usage'', \textit{Linux Kernel Documentation}. Disponible en: https://www.kernel.org/doc/html/latest/devicetree/usage-model.html
+	\bibitem{journalctl} Lennart Poettering. (2024). ``journalctl(1) - Linux man page''. Disponible en: https://man7.org/linux/man-pages/man1/journalctl.1.html
+\end{thebibliography}
+
+\end{document}
