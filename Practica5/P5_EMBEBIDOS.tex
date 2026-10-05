@@ -365,7 +365,11 @@ Mediante el desarrollo experimental de esta práctica se analizaron las diferenc
 Los resultados en el problema del Productor-Consumidor enfatizaron la importancia de utilizar primitivas de sincronización adecuadas (como semáforos POSIX y mutex) para la comunicación inter-hilos en sistemas embebidos en tiempo real. Esta arquitectura no solo eliminó las condiciones de carrera y garantizó la integridad temporal de los datos del sensor, sino que reguló automáticamente la velocidad de producción sin desperdiciar ciclos de CPU mediante esperas ocupadas.
 
 \textbf{Domínguez Palacios Jesús Alejandro}. \\
-Conclusión pendiente.
+Esta práctica me permitió ver en la Raspberry Pi lo que en clase solo había revisado en diagramas. Con \texttt{ps} y \texttt{pstree} entendí que todo proceso tiene un padre y que el árbol parte de \texttt{systemd}. Con \texttt{fork()} comprobé cómo un proceso se duplica, y el proceso zombie dejó claro que si el padre no llama a \texttt{wait()}, la entrada se queda en la tabla de procesos.
+
+La condición de carrera mostró que \texttt{contador++} no es atómico: sin mutex el resultado nunca llegó a 2,000,000 y variaba en cada ejecución, y con mutex fue siempre correcto, a cambio de una sobrecarga medible. También comprobé que crear hilos es entre 6 y 7 veces más rápido que crear procesos, y que el planificador CFS respeta las prioridades de \texttt{nice}.
+
+Finalmente, el productor-consumidor, con un mutex y dos semáforos, permitió que dos hilos a ritmos distintos intercambiaran las 100 muestras sin pérdidas ni espera ocupada, un patrón aplicable a sistemas embebidos que adquieren datos de sensores.
 
 \textbf{Dorantes Mejía Emmanuel}. \\
 Conclusión pendiente.
