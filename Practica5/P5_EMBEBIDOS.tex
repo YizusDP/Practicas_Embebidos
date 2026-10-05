@@ -372,7 +372,9 @@ La condición de carrera mostró que \texttt{contador++} no es atómico: sin mut
 Finalmente, el productor-consumidor, con un mutex y dos semáforos, permitió que dos hilos a ritmos distintos intercambiaran las 100 muestras sin pérdidas ni espera ocupada, un patrón aplicable a sistemas embebidos que adquieren datos de sensores.
 
 \textbf{Dorantes Mejía Emmanuel}. \\
-Conclusión pendiente.
+Esta práctica permitió comprender mejor el funcionamiento de procesos e hilos en Linux y la forma en que el sistema administra sus recursos. Se observó la creación de procesos con fork(), el comportamiento de los procesos zombie y la importancia de usar correctamente wait().
+
+También se comprobó que los hilos son más rápidos de crear que los procesos y que, al compartir recursos, es necesario utilizar mecanismos de sincronización como mutex y semáforos para evitar condiciones de carrera. Finalmente, el problema Productor-Consumidor permitió integrar estos conceptos y entender su aplicación en sistemas embebidos que requieren manejar varias tareas de manera eficiente.
 
 \textbf{García Olvera Emiliano}. \\
 Conclusión pendiente.
