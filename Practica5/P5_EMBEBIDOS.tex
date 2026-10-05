@@ -192,6 +192,142 @@ nproc
 
 El primer comando debe mostrar el servicio como \texttt{inactive}. El segundo comando muestra el número de núcleos del procesador (típicamente 4 en Raspberry Pi 4), información necesaria para la Parte E.
 
+\subsection{Parte A: Ver los procesos}
+Se inició una sesión SSH en la Raspberry Pi y se ejecutaron comandos de inspección del sistema. Primero, se listaron los procesos indicando su PID, proceso padre (PPID), estado, nivel de prioridad (nice) y comando mediante \texttt{ps -eo pid,ppid,stat,ni,cmd} (ver Figura \ref{fig:c1}). Posteriormente, se visualizó la jerarquía completa en forma de árbol con \texttt{pstree -p} (Figura \ref{fig:c2}) y se consultaron los hilos por proceso utilizando \texttt{ps -eLf} (Figura \ref{fig:c3}). Finalmente, mediante comandos encadenados, se identificó al proceso número 1, al padre de la sesión actual de bash y se contabilizó el estado más común del sistema (Figura \ref{fig:c4}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C1.png}
+	\caption{Listado de procesos en ejecución detallando PID, PPID y estado.}
+	\label{fig:c1}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C2.png}
+	\caption{Árbol de procesos generado con \texttt{pstree}, mostrando la jerarquía del sistema.}
+	\label{fig:c2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C3.png}
+	\caption{Desglose de hilos por proceso (LWP/NLWP) mediante \texttt{ps -eLf}.}
+	\label{fig:c3}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C4.png}
+	\caption{Identificación del PID 1, proceso padre de la sesión interactiva y conteo de estados.}
+	\label{fig:c4}
+\end{figure}
+
+\subsection{Parte B: fork() y procesos zombie}
+Se codificó el programa \texttt{fork\_hijos.c} para generar tres procesos derivados del mismo padre empleando la llamada al sistema \texttt{fork()}. Tras la compilación, se ejecutó y se monitoreó desde una segunda terminal verificando los PPIDs (Figura \ref{fig:c5}). Posteriormente, se desarrolló \texttt{zombie.c}, diseñado para que el proceso hijo finalizara su ejecución mediante \texttt{exit(0)} mientras el padre suspendía su ejecución por 30 segundos antes de invocar \texttt{wait()}. El estado resultante se inspeccionó con \texttt{ps} (Figura \ref{fig:c6}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C5.png}
+	\caption{Ejecución de \texttt{fork\_hijos} y comprobación de la relación padre-hijo.}
+	\label{fig:c5}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C6.png}
+	\caption{Generación intencional de un proceso zombie (\texttt{Z+}) y su retención en la tabla de procesos.}
+	\label{fig:c6}
+\end{figure}
+
+\subsection{Parte C: Hilos y condición de carrera}
+Se implementó el programa \texttt{contador\_hilos.c}, donde dos hilos incrementan concurrentemente una variable global compartida un millón de veces cada uno. Se compiló sin optimizaciones (\texttt{-O0}) y se ejecutó iterativamente 10 veces (Figura \ref{fig:c7}). Para corregir las inconsistencias detectadas, se creó \texttt{contador\_mutex.c}, introduciendo un candado \texttt{pthread\_mutex\_t}. Se repitió la ráfaga de 10 ejecuciones y se comparó el tiempo de ejecución entre ambas versiones con el comando \texttt{time} (Figura \ref{fig:c8}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C7.png}
+	\caption{Resultados erróneos e inconsistentes de \texttt{contador\_hilos} debido a la condición de carrera.}
+	\label{fig:c7}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C8.png}
+	\caption{Ejecución determinista con Mutex y comparación de sobrecarga temporal.}
+	\label{fig:c8}
+\end{figure}
+
+
+\subsection{Parte D: Cuánto cuesta un proceso frente a un hilo}
+Se desarrolló el programa \texttt{costo.c} para medir de manera comparativa la sobrecarga temporal asociada a la creación y destrucción de 2,000 procesos ligeros empleando \texttt{fork()} frente a 2,000 hilos POSIX independientes creados con \texttt{pthread\_create()}. Se compiló con \texttt{-pthread} y se ejecutaron tres mediciones consecutivas (Figura \ref{fig:c9}). Para automatizar el cálculo de la razón de rendimiento, se procesó la salida mediante un script en \texttt{awk} (Figura \ref{fig:c10}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C9.png}
+	\caption{Tiempos de creación de 2000 procesos frente a 2000 hilos en tres ejecuciones.}
+	\label{fig:c9}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C10.png}
+	\caption{Cálculo automatizado con \texttt{awk} de la relación de costo (procesos/hilos).}
+	\label{fig:c10}
+\end{figure}
+
+\subsection{Parte E: Prioridades bajo el planificador}
+Se implementó un programa intensivo en CPU denominado \texttt{quemar.c} con un bucle infinito. Mediante la herramienta \texttt{taskset -c 0}, se forzó la ejecución de dos instancias del proceso sobre el mismo núcleo de procesamiento físico.
+
+En el primer experimento se ejecutó una instancia con prioridad por defecto (\texttt{nice = 0}) y una segunda instancia con prioridad baja (\texttt{nice = 19}) mediante el comando \texttt{nice -n 19} (Figura \ref{fig:c11}). En el segundo experimento, ambas instancias se ejecutaron en igualdad de condiciones con \texttt{nice = 0} (Figura \ref{fig:c12}). El comportamiento de ocupación de procesador se inspeccionó en tiempo real utilizando \texttt{top} e invocaciones a \texttt{ps}.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C11.png}
+	\caption{Experimento 1: Competencia por núcleo 0 entre procesos con \texttt{nice 0} y \texttt{nice 19}.}
+	\label{fig:c11}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C12.png}
+	\caption{Experimento 2: Competencia por núcleo 0 entre dos procesos con misma prioridad (\texttt{nice 0}).}
+	\label{fig:c12}
+\end{figure}
+
+\subsection{Parte F: Reto final: productor y consumidor}
+Se codificó \texttt{productor\_consumidor.c} sincronizando el flujo de trabajo mediante un \texttt{pthread\_mutex\_t} y dos semáforos POSIX (\texttt{sem\_t vacios} y \texttt{sem\_t llenos}). Se simuló la lectura de un sensor ADC en un búfer circular de 8 posiciones. El productor insertó 100 muestras con un periodo de 100 ms, mientras que el consumidor extrajo los datos con un retardo de 300 ms. 
+
+La salida se redirigió mediante \texttt{tee} al archivo \texttt{salida\_pc.txt} y se cronometró la ejecución total con \texttt{time} (Figuras \ref{fig:c13} y \ref{fig:c14}). Para comprobar la integridad de la sincronización, se ejecutó una tubería de validación en bash utilizando \texttt{grep}, \texttt{sed}, \texttt{sort}, \texttt{uniq} y \texttt{awk} (Figura \ref{fig:c15}). Finalmente, los archivos de la práctica fueron integrados en el sistema de control de versiones Git del curso (Figura \ref{fig:c16}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C13.png}
+	\caption{Inicio de la ejecución de Productor-Consumidor y llenado progresivo del búfer.}
+	\label{fig:c13}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C14.png}
+	\caption{Finalización del procesamiento (100 de 100 muestras) y medición del tiempo total.}
+	\label{fig:c14}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C15.png}
+	\caption{Verificación estricta del orden y completitud de las lecturas mediante comandos de Linux.}
+	\label{fig:c15}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C16.png}
+	\caption{Control de versiones mediante Git y registro de commits del repositorio del proyecto.}
+	\label{fig:c16}
+\end{figure}
+
+
 \section{Resultados y Análisis}
 
 Contenido pendiente: Presentar los resultados obtenidos de cada parte del desarrollo.
