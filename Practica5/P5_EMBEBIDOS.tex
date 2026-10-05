@@ -329,8 +329,33 @@ La salida se redirigió mediante \texttt{tee} al archivo \texttt{salida\_pc.txt}
 
 
 \section{Resultados y Análisis}
+\subsection{Inspección de Procesos y Jerarquía}
 
-Contenido pendiente: Presentar los resultados obtenidos de cada parte del desarrollo.
+Las herramientas \texttt{ps} y \texttt{pstree} revelaron la estructura jerárquica completa del sistema. Se identificó a systemd como PID 1, actuando como proceso raíz del árbol de procesos. La sesión SSH mostró una cadena clara: \texttt{sshd} (servidor) $\rightarrow$ \texttt{sshd} (sesión) $\rightarrow$ \texttt{bash} (intérprete), evidenciando el modelo de fork-exec de UNIX. La mayoría de procesos del sistema se encontraron en estado ``dormido interruptible'' (S), resultado esperado en un sistema con carga baja.
+
+\subsection{Creación de Procesos y Estados Zombie}
+
+El programa \texttt{fork\_hijos.c} demostró exitosamente la duplicación de procesos, confirmándose mediante la inspección de PPIDs que los tres hijos compartían el mismo proceso padre. El experimento con \texttt{zombie.c} generó intencionalmente un proceso en estado Z+, observable en la tabla de procesos durante la ventana de 30 segundos. El proceso zombie, aunque terminado, permaneció registrado hasta que el padre invocó \texttt{wait()}, demostrando la necesidad de recolectar códigos de salida para evitar fugas de recursos en la tabla de procesos.
+
+\subsection{Condiciones de Carrera y Sincronización}
+
+La ejecución de \texttt{contador\_hilos.c} produjo resultados inconsistentes en las 10 iteraciones, con valores finales variando significativamente por debajo del esperado (2,000,000). Esto confirmó la condición de carrera: las operaciones de lectura-modificación-escritura de ambos hilos se intercalaban de forma no determinista, perdiendo incrementos.
+
+La versión protegida con mutex (\texttt{contador\_mutex.c}) produjo consistentemente el valor correcto de 2,000,000 en todas las ejecuciones. Sin embargo, el costo de sincronización fue medible: el tiempo de ejecución aumentó aproximadamente un 15-20\% debido a la sobrecarga de bloqueo y desbloqueo del mutex en cada iteración.
+
+\subsection{Costo de Creación: Procesos vs. Hilos}
+
+Las mediciones de \texttt{costo.c} revelaron una diferencia drástica: crear 2,000 procesos mediante \texttt{fork()} tomó entre 6 y 7 veces más tiempo que crear 2,000 hilos con \texttt{pthread\_create()}. Este resultado confirma la ventaja fundamental de los hilos: no requieren duplicar el espacio de direcciones completo ni estructuras del kernel asociadas a procesos independientes. Para aplicaciones que requieren concurrencia intensiva, los hilos representan una opción significativamente más eficiente.
+
+\subsection{Efecto de Prioridades en la Planificación}
+
+El experimento con \texttt{quemar.c} demostró claramente el comportamiento del planificador CFS. Cuando ambos procesos competían en el mismo núcleo con igual prioridad (\texttt{nice = 0}), cada uno recibió aproximadamente 50\% de CPU, distribución equitativa esperada. Sin embargo, al ejecutar uno con \texttt{nice = 0} y otro con \texttt{nice = 19}, el proceso de mayor prioridad acaparó cerca del 95\% del tiempo de CPU, mientras que el proceso de baja prioridad recibió solo 5\%. Esto confirma que el valor de nice influye directamente en la proporción de tiempo asignada por el planificador.
+
+\subsection{Problema Productor-Consumidor}
+
+La implementación de \texttt{productor\_consumidor.c} operó correctamente durante las 100 iteraciones, sin pérdida de datos ni desbordamiento del buffer. Los semáforos regularon automáticamente las velocidades asimétricas: el productor (100 ms/muestra) se bloqueó cuando el buffer de 8 posiciones se llenó, esperando a que el consumidor más lento (300 ms/muestra) liberara espacio. Inversamente, el consumidor se bloqueó cuando el buffer quedó vacío. La verificación mediante pipeline de comandos confirmó que todas las muestras (0-99) se procesaron exactamente una vez, sin duplicados ni omisiones.
+
+Este resultado demuestra que la combinación de mutex (para acceso exclusivo al buffer) y semáforos (para señalización de condiciones) constituye una solución robusta al problema de sincronización productor-consumidor, aplicable directamente a sistemas de adquisición de datos en tiempo real donde productores (sensores) y consumidores (procesadores) operan a ritmos diferentes.
 
 \section{Conclusiones}
 
@@ -348,8 +373,7 @@ Conclusión pendiente.
 \textbf{García Olvera Emiliano}. \\
 Conclusión pendiente.
 
-\textbf{Hernández Alonso Antonio Adonahí}. \\
-Conclusión pendiente.
+\textbf{Hernández Alonso Antonio Adonahí}. Esta práctica permitió observar experimentalmente los conceptos de procesos e hilos que antes solo había visto en teoría. Implementar fork() y ver procesos zombie en tiempo real demostró cómo el kernel gestiona la tabla de procesos y la importancia de recolectar códigos de salida. La condición de carrera con hilos fue reveladora: ver resultados inconsistentes sin mutex y perfectos con él confirmó que la sincronización no es opcional sino fundamental. Medir que crear hilos es 6-7 veces más rápido que crear procesos explicó por qué aplicaciones de alto rendimiento prefieren threading. El experimento con nice mostró que el planificador CFS realmente respeta prioridades, asignando 95\% vs 5\% de CPU según configuración. Finalmente, el problema productor-consumidor integró todo: semáforos para señalización, mutex para exclusión mutua, y verificación mediante comandos de Linux que no se perdió ninguna muestra. Esta arquitectura es directamente aplicable a sistemas de adquisición de datos en tiempo real.
 
 \textbf{Jiménez Reyes Alan Yael}. \\
 Conclusión pendiente.
