@@ -1,0 +1,227 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% Configuración para español
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% Paquetes estándar IEEE
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{listings} % Para código
+
+% ---------- Configuración de listados de código ----------
+\definecolor{codegray}{rgb}{0.45,0.45,0.45}
+\definecolor{codeblue}{rgb}{0.10,0.10,0.60}
+\lstset{
+	basicstyle=\ttfamily\scriptsize,
+	keywordstyle=\color{codeblue}\bfseries,
+	commentstyle=\color{codegray}\itshape,
+	stringstyle=\color{codegray},
+	numbers=left,
+	numberstyle=\tiny\color{codegray},
+	numbersep=5pt,
+	frame=single,
+	breaklines=true,
+	breakatwhitespace=true,
+	showstringspaces=false,
+	tabsize=2,
+	captionpos=b,
+	literate=%
+	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+	{ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+
+% ---------- Espacio reservado para imágenes faltantes ----------
+\newcommand{\imgph}[2]{%
+	\fbox{\begin{minipage}[c][#2][c]{0.92\columnwidth}
+			\centering\textcolor{codegray}{\footnotesize [Espacio para imagen: #1]}
+	\end{minipage}}%
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+	T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Práctica 5: Procesos e Hilos}
+
+\author{
+	\IEEEauthorblockN{Belmont Muñoz Samuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 317318289}
+	\and
+	\IEEEauthorblockN{Domínguez Palacios Jesús Alejandro}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 421066205}
+	\and
+	\IEEEauthorblockN{Dorantes Mejía Emmanuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 313004766}
+	\and
+	\IEEEauthorblockN{García Olvera Emiliano}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 314256009}
+	\and
+	\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320257780}
+	\and
+	\IEEEauthorblockN{Jiménez Reyes Alan Yael}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320026726}
+}
+
+\maketitle
+
+\begin{center}
+	\vspace{-0.3cm}
+	{\small
+		\textbf{Práctica No.:} 5 \quad | \quad
+		\textbf{Grupo:} 6 \quad | \quad
+		\textbf{Fecha:} 05/10/2026
+	}
+	\vspace{0.2cm}
+\end{center}
+
+\begin{abstract}
+	Este reporte documenta la implementación práctica de conceptos fundamentales de sistemas operativos: procesos, hilos, sincronización y planificación de CPU. Se describe la creación y gestión de procesos mediante \texttt{fork()}, la identificación de jerarquías de procesos con \texttt{ps} y \texttt{pstree}, y el manejo de procesos zombie. El documento aborda la reproducción y corrección de condiciones de carrera mediante el uso de mutex, la comparación de costos entre creación de procesos e hilos, el análisis del efecto de prioridades con \texttt{nice}, y la implementación del problema productor-consumidor utilizando semáforos POSIX. Se demuestra experimentalmente cómo el kernel de Linux gestiona la concurrencia y el multiprocesamiento en un sistema embebido.
+\end{abstract}
+
+\begin{IEEEkeywords}
+	Procesos, hilos, fork, pthread, mutex, semáforos, condiciones de carrera, planificación, nice, productor-consumidor, Raspberry Pi
+\end{IEEEkeywords}
+
+\section{Objetivo}
+
+\subsection{Objetivo General}
+Observar y comprobar experimentalmente en la Raspberry Pi los conceptos de procesos, hilos, sincronización y planificación de CPU estudiados en clase, mediante la implementación de programas que demuestren la duplicación de procesos con \texttt{fork()}, condiciones de carrera entre hilos, y mecanismos de sincronización.
+
+\subsection{Objetivos Específicos}
+\begin{itemize}
+	\item Ubicar procesos, identificar relaciones padre-hijo, y observar sus estados mediante \texttt{ps} y \texttt{pstree}.
+	\item Crear procesos hijo con \texttt{fork()} y provocar (intencionalmente) un proceso zombie para después limpiarlo correctamente.
+	\item Reproducir una condición de carrera con hilos que acceden a memoria compartida y corregirla mediante el uso de mutex.
+	\item Medir y comparar el costo computacional de crear un proceso versus crear un hilo.
+	\item Comprobar experimentalmente el efecto de la prioridad (\texttt{nice}) sobre el reparto de tiempo de CPU entre procesos.
+	\item Resolver el problema clásico productor-consumidor utilizando hilos y semáforos POSIX.
+	\item Registrar el trabajo desarrollado en el repositorio de Git del curso.
+\end{itemize}
+
+\section{Introducción}
+
+Los sistemas operativos modernos gestionan la ejecución concurrente de múltiples tareas mediante abstracciones fundamentales: procesos e hilos. En esta práctica se exploran estos conceptos desde una perspectiva experimental, ejecutando código real en la Raspberry Pi para observar comportamientos que en clase se estudian mediante diagramas y trazas.
+
+\subsection{Procesos en Linux}
+
+Un proceso es una instancia en ejecución de un programa, que incluye el código ejecutable, datos, pila, registros del procesador, y descriptores de recursos del sistema. Linux utiliza el modelo de procesos de UNIX, donde cada proceso tiene un identificador único (PID) y puede crear procesos hijo mediante la llamada al sistema \texttt{fork()}.
+
+La llamada \texttt{fork()} crea una copia casi exacta del proceso actual (el padre), retornando el PID del hijo al padre y 0 al hijo. Esto permite que ambos procesos ejecuten código diferente basándose en el valor de retorno. Los procesos hijo heredan descriptores de archivos abiertos, variables de entorno, y el espacio de direcciones (inicialmente con copy-on-write), pero ejecutan de forma independiente.
+
+Un proceso puede terminar en varios estados finales. El estado zombie ocurre cuando un proceso hijo termina pero su proceso padre no ha llamado a \texttt{wait()} para recolectar su código de salida. El proceso zombie no consume recursos significativos más allá de su entrada en la tabla de procesos, pero su acumulación puede agotar los PIDs disponibles.
+
+\subsection{Hilos (Threads)}
+
+Los hilos son unidades de ejecución dentro de un proceso que comparten el mismo espacio de direcciones, descriptores de archivos, y recursos del proceso, pero tienen su propia pila y registros del procesador. POSIX define la interfaz \texttt{pthread} (POSIX threads) para la creación y gestión de hilos en sistemas UNIX.
+
+La principal ventaja de los hilos sobre los procesos es su menor costo de creación: no requieren duplicar el espacio de direcciones completo. Sin embargo, compartir memoria introduce riesgos de condiciones de carrera cuando múltiples hilos acceden y modifican datos compartidos sin sincronización adecuada.
+
+\subsection{Condiciones de Carrera y Sincronización}
+
+Una condición de carrera ocurre cuando el resultado de una operación depende del orden de ejecución no determinista de hilos concurrentes. El ejemplo clásico es el incremento de un contador compartido: la operación aparentemente atómica \texttt{contador++} se compila en múltiples instrucciones (lectura, incremento, escritura), y si dos hilos ejecutan estas instrucciones intercaladamente, se pierden incrementos.
+
+Los mecanismos de sincronización resuelven este problema:
+
+\begin{itemize}
+	\item \textbf{Mutex (Mutual Exclusion)}: Garantiza que solo un hilo a la vez puede ejecutar una sección crítica. POSIX define \texttt{pthread\_mutex\_lock()} y \texttt{pthread\_mutex\_unlock()} para proteger regiones de código.
+
+	\item \textbf{Semáforos}: Generalizan el mutex, permitiendo controlar el acceso a un número limitado de recursos. Un semáforo binario equivale a un mutex, mientras que un semáforo con valor $n > 1$ permite hasta $n$ hilos simultáneos en la sección crítica.
+\end{itemize}
+
+\subsection{Planificación de CPU y Prioridades}
+
+El planificador del kernel decide qué proceso o hilo ejecutar en cada momento. Linux utiliza el Completely Fair Scheduler (CFS) que asigna tiempo de CPU proporcionalmente a la prioridad de cada tarea.
+
+El comando \texttt{nice} ajusta la prioridad de un proceso mediante un valor de "amabilidad" (niceness) que va de -20 (mayor prioridad) a +19 (menor prioridad). Un proceso con nice +10 recibirá menos tiempo de CPU que uno con nice 0, y mucho menos que uno con nice -10 (que requiere privilegios de superusuario).
+
+\subsection{Problema Productor-Consumidor}
+
+El problema productor-consumidor es un escenario clásico de sincronización donde uno o más hilos productores generan datos que son consumidos por uno o más hilos consumidores a través de un buffer compartido de tamaño limitado. El problema requiere sincronización para:
+
+\begin{itemize}
+	\item Evitar que el productor escriba cuando el buffer está lleno.
+	\item Evitar que el consumidor lea cuando el buffer está vacío.
+	\item Garantizar acceso exclusivo al buffer durante inserciones y extracciones.
+\end{itemize}
+
+La solución típica utiliza tres elementos de sincronización: un mutex para proteger el acceso al buffer, un semáforo que cuenta espacios vacíos, y un semáforo que cuenta espacios llenos.
+
+\section{Desarrollo}
+
+\subsection{Material y Equipo}
+
+Para la realización de esta práctica se utilizaron los siguientes elementos:
+
+\begin{itemize}
+	\item Raspberry Pi 4 Model B con Raspberry Pi OS instalado
+	\item Toolchain de desarrollo en C (GCC) con soporte para POSIX threads
+	\item Repositorio Git del curso con prácticas anteriores
+	\item Laptop con acceso SSH al sistema
+	\item Circuito de LEDs/botones de prácticas anteriores (opcional, solo para el reto de la Parte F)
+\end{itemize}
+
+\textbf{Verificación previa}: Antes de iniciar la práctica, se verificó que el servicio \texttt{misistema.service} de la Práctica 4 estuviera detenido y deshabilitado, para evitar competencia por pines GPIO y alteraciones en las mediciones de rendimiento:
+
+\begin{lstlisting}[language=bash]
+systemctl status misistema.service
+nproc
+\end{lstlisting}
+
+El primer comando debe mostrar el servicio como \texttt{inactive}. El segundo comando muestra el número de núcleos del procesador (típicamente 4 en Raspberry Pi 4), información necesaria para la Parte E.
+
+\section{Resultados y Análisis}
+
+Contenido pendiente: Presentar los resultados obtenidos de cada parte del desarrollo.
+
+\section{Conclusiones}
+
+\textbf{Belmont Muñoz Samuel}. \\
+Conclusión pendiente.
+
+\textbf{Domínguez Palacios Jesús Alejandro}. \\
+Conclusión pendiente.
+
+\textbf{Dorantes Mejía Emmanuel}. \\
+Conclusión pendiente.
+
+\textbf{García Olvera Emiliano}. \\
+Conclusión pendiente.
+
+\textbf{Hernández Alonso Antonio Adonahí}. \\
+Conclusión pendiente.
+
+\textbf{Jiménez Reyes Alan Yael}. \\
+Conclusión pendiente.
+
+\begin{thebibliography}{00}
+	\bibitem{posix_threads} IEEE. (2018). ``POSIX.1-2017: Threads'', \textit{The Open Group Base Specifications}. Disponible en: https://pubs.opengroup.org/onlinepubs/9699919799/
+	\bibitem{linux_process} The kernel development community. (2024). ``Process Management'', \textit{Linux Kernel Documentation}. Disponible en: https://www.kernel.org/doc/html/latest/
+	\bibitem{cfs_scheduler} Ingo Molnár. (2007). ``CFS Scheduler Design'', \textit{Linux Kernel Documentation}. Disponible en: https://www.kernel.org/doc/Documentation/scheduler/sched-design-CFS.txt
+	\bibitem{semaphores} The kernel development community. (2024). ``Semaphores'', \textit{Linux Kernel Locking}. Disponible en: https://www.kernel.org/doc/html/latest/locking/index.html
+	\bibitem{producer_consumer} Andrew S. Tanenbaum. (2014). \textit{Modern Operating Systems}, 4th ed. Pearson.
+\end{thebibliography}
+
+\end{document}
