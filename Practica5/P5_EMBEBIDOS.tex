@@ -335,7 +335,9 @@ Contenido pendiente: Presentar los resultados obtenidos de cada parte del desarr
 \section{Conclusiones}
 
 \textbf{Belmont Muñoz Samuel}. \\
-Conclusión pendiente.
+Mediante el desarrollo experimental de esta práctica se analizaron las diferencias operativas entre procesos e hilos en el kernel de Linux. La medición empírica comprobó la marcada eficiencia de la creación de hilos (hasta 6.5 veces más rápida) debido al uso compartido del espacio de direcciones. Asimismo, los experimentos con el planificador CFS demostraron cómo la asignación de valores \texttt{nice} condiciona la distribución de tiempo de CPU entre tareas competidoras. 
+
+Los resultados en el problema del Productor-Consumidor enfatizaron la importancia de utilizar primitivas de sincronización adecuadas (como semáforos POSIX y mutex) para la comunicación inter-hilos en sistemas embebidos en tiempo real. Esta arquitectura no solo eliminó las condiciones de carrera y garantizó la integridad temporal de los datos del sensor, sino que reguló automáticamente la velocidad de producción sin desperdiciar ciclos de CPU mediante esperas ocupadas.
 
 \textbf{Domínguez Palacios Jesús Alejandro}. \\
 Conclusión pendiente.
