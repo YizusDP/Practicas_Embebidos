@@ -403,7 +403,9 @@ A través de esta práctica se consolidó la comprensión de la frontera entre e
 Se cumplieron los objetivos planteados.
 
 \textbf{Domínguez Palacios Jesús Alejandro}. \\
-Conclusión pendiente.
+Con esta práctica entendí que un módulo de kernel no es un programa más, sino código que se integra al sistema operativo en ejecución y que por eso debe compilarse contra los headers exactos del kernel activo, como comprobé al verificar el \texttt{vermagic} de \texttt{hola.ko} con \texttt{modinfo}. Al pasar parámetros a \texttt{parametros.ko} y modificarlos desde \texttt{/sys/module}, vi que el kernel también valida lo que recibe: al intentar asignar \texttt{veces=9} fuera del rango permitido, el sistema rechazó el valor con un error en lugar de aceptarlo sin más. Esa misma idea apareció en \texttt{p6buf}, donde \texttt{copy\_from\_user} y \texttt{copy\_to\_user} son necesarios porque el kernel no puede confiar directamente en punteros del espacio de usuario, y donde el driver debe rechazar escrituras que excedan el búfer de 256 bytes.
+
+Con \texttt{strace} pude ver cómo cada \texttt{open}, \texttt{read} y \texttt{write} de \texttt{cliente.c} cruza hacia el kernel, y con \texttt{tiempo.c} comprobé que ese cruce tiene un costo medible frente al acceso a memoria de usuario, y que el hardware real, como el SPI, es todavía más lento. Esto explica por qué en sistemas embebidos conviene reducir el número de llamadas al sistema. Además, al rastrear \texttt{sensor\_combinado} confirmé que lo que usé en prácticas anteriores (GPIO, I2C y SPI) siempre pasa por un archivo de \texttt{/dev} y por su driver correspondiente. Finalmente, al desarrollar \texttt{p6cnt} apliqué todo el flujo completo: registrar un dispositivo, contar aperturas, interpretar el comando \texttt{reset}, validar entradas inválidas y descargar el módulo limpiamente. Se cumplieron los objetivos planteados.
 
 \textbf{Dorantes Mejía Emmanuel}. \\
 Conclusión pendiente.
