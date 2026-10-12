@@ -243,6 +243,154 @@ Para la realización de esta práctica se utilizaron los siguientes elementos:
 
 \textbf{Nota}: No se requiere hardware adicional. El driver desarrollado es virtual y no controla dispositivos físicos reales, aunque los programas de prácticas anteriores que utilizan GPIO, I2C y SPI se analizarán para identificar sus interacciones con drivers del kernel.
 
+
+\subsection{Parte A. Entorno y headers del kernel}
+Para iniciar el desarrollo de la práctica, se verificó exhaustivamente el entorno operativo del sistema y la correspondencia de los headers del kernel en ejecución. Mediante la ejecución de comandos informativos en la terminal como \texttt{uname -r}, \texttt{uname -m}, \texttt{dpkg --print-architecture}, la lectura de la versión del sistema operativo en \texttt{/etc/os-release} y la consulta de la versión del compilador GCC, se determinó que el entorno opera bajo una arquitectura de 64 bits con el kernel \texttt{6.18.39+rpt-rpi-v8} sobre Debian Trixie, tal como se aprecia en la Figura \ref{fig:c1_2}. Posteriormente, se comprobó la existencia del archivo \texttt{Makefile} dentro del directorio de headers del kernel y se resolvió la ruta absoluta mediante \texttt{readlink}, confirmando la concordancia exacta con la versión activa del sistema operativo (Figura \ref{fig:c2_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C1.png}
+	\caption{Identificación del kernel, arquitectura, distribución y versión del compilador.}
+	\label{fig:c1_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C2.png}
+	\caption{Verificación de los headers del kernel y resolución de la ruta de compilación con \texttt{readlink}.}
+	\label{fig:c2_2}
+\end{figure}
+
+\subsection{Parte B. Módulo mínimo: cargar y descargar}
+En esta sección se diseñó e implementó un módulo de kernel mínimo denominado \texttt{hola.c} utilizando las macros \texttt{module\_init} y \texttt{module\_exit} junto con la función \texttt{pr\_info} para registrar mensajes directamente en el búfer circular del kernel. Tras configurar el archivo \texttt{Makefile}, se ejecutó \texttt{make} para compilar el módulo y generar el archivo binario \texttt{hola.ko}, inspeccionando su metainformación con \texttt{modinfo} y validando que el campo \texttt{vermagic} coincidiera de manera precisa con la versión del kernel activo (Figura \ref{fig:c3_2}). En seguida, se cargó el módulo ejecutando \texttt{sync} previo a \texttt{sudo insmod hola.ko}, comprobando su correcta inserción mediante \texttt{dmesg}, \texttt{lsmod}, la inspección del directorio \texttt{/sys/module/hola}, y verificando que el módulo no se ejecuta como un proceso tradicional de espacio de usuario en \texttt{ps}, para finalmente descargarlo con \texttt{sudo rmmod hola} (Figura \ref{fig:c4_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C3.png}
+	\caption{Compilación de \texttt{hola.c} e inspección de metainformación del módulo con \texttt{modinfo}.}
+	\label{fig:c3_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C4.png}
+	\caption{Carga, inspección en el sistema y descarga del módulo mínimo \texttt{hola}.}
+	\label{fig:c4_2}
+\end{figure}
+
+\subsection{Parte C. Parámetros del módulo y sysfs}
+La práctica continuó con la integración de parámetros configurables en módulos mediante \texttt{parametros.c}, incorporando variables dinámicas como \texttt{nombre} y \texttt{veces} por medio de la macro \texttt{module\_param}. Tras compilar y actualizar el \texttt{Makefile}, se cargó el módulo utilizando los valores por defecto y posteriormente sobreescribiendo dichos parámetros directamente desde la línea de comandos con \texttt{nombre=Pi veces=3}, observando la correcta emisión de los mensajes iterativos en el registro del kernel (Figura \ref{fig:c5_2}). Asimismo, se exploró el sistema de archivos virtual \texttt{sysfs} en \texttt{/sys/module/parametros/parameters/}, modificando de forma interactiva el valor de la variable \texttt{veces} a través de \texttt{tee} y comprobando la restricción de validación al intentar insertar un valor fuera del rango permitido (\texttt{veces=9}), lo cual arrojó un código de error controlado por el kernel (Figura \ref{fig:c6_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C5.png}
+	\caption{Carga inicial de \texttt{parametros.ko} y ejecución posterior pasando argumentos personalizados.}
+	\label{fig:c5_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C6.png}
+	\caption{Inspección en \texttt{sysfs}, modificación de variables y manejo de errores por parámetros fuera de rango.}
+	\label{fig:c6_2}
+\end{figure}
+
+\subsection{Parte D. Dispositivo de caracteres virtual}
+En esta parte se desarrolló un driver de caracteres virtual denominado \texttt{p6buf.c}, el cual reserva un búfer interno de 256 bytes en el espacio de kernel y expone el archivo de dispositivo \texttt{/dev/p6buf} mediante la interfaz \texttt{miscdevice}. Se actualizó el archivo \texttt{Makefile} para compilar este nuevo módulo junto con los desarrollados en las fases previas (Figura \ref{fig:c7_2}). Una vez cargado el módulo con \texttt{insmod}, se verificó la creación automática del nodo de dispositivo en \texttt{/dev/p6buf} con sus respectivos permisos y número menor dinámico, comprobando las operaciones de escritura y lectura mediante comandos estándar como \texttt{echo} y \texttt{cat}, además de evaluar la respuesta de rechazo y el código de error devuelto ante una escritura que excede la capacidad máxima del búfer (Figura \ref{fig:c8_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C7.png}
+	\caption{Actualización del archivo \texttt{Makefile} para la compilación conjunta de los módulos de la práctica.}
+	\label{fig:c7_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C8.png}
+	\caption{Carga de \texttt{p6buf.ko}, pruebas de lectura/escritura en \texttt{/dev/p6buf} y manejo de desbordamiento.}
+	\label{fig:c8_2}
+\end{figure}
+
+\subsection{Parte E. Del programa de usuario al driver}
+Se construyó el programa \texttt{cliente.c} para interactuar desde el espacio de usuario con el driver \texttt{/dev/p6buf}. Tras compilar con \texttt{gcc}, se ejecutó el cliente pasando distintos textos y se inspeccionó el registro del kernel mediante \texttt{dmesg}, observando detalladamente las aperturas y escrituras asociadas al PID del proceso. Asimismo, se empleó la herramienta \texttt{strace} para trazar las llamadas al sistema (\textit{syscalls}) como \texttt{openat}, \texttt{read}, \texttt{write}, \texttt{lseek} y \texttt{close} invocadas por el cliente (Figura \ref{fig:c9_2}). Posteriormente, se compiló y ejecutó de forma similar el programa de comunicación entre procesos \texttt{demo\_ipc}, interceptando las syscalls de tuberías y clonación con \texttt{strace} (Figura \ref{fig:c10_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C9.png}
+	\caption{Ejecución de \texttt{cliente.c} y rastreo de llamadas al sistema mediante \texttt{strace}.}
+	\label{fig:c9_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C10.png}
+	\caption{Trazado de syscalls de comunicación entre procesos con \texttt{demo\_ipc} y \texttt{strace}.}
+	\label{fig:c10_2}
+\end{figure}
+
+\subsection{Parte F. Costo de cruzar al kernel}
+La evaluación del costo temporal de cruzar al espacio de kernel se realizó mediante el programa \texttt{tiempo.c}, el cual mide con alta precisión temporal operaciones repetitivas de acceso a memoria de usuario, la llamada al sistema \texttt{syscall(SYS\_getppid)}, lecturas mediante \texttt{pread} sobre el dispositivo virtual \texttt{/dev/p6buf}, y transferencias a través del bus SPI. Tras compilar con la optimización \texttt{-O2}, se realizaron tres ejecuciones consecutivas del programa, obteniendo métricas en nanosegundos que evidencian la sobrecarga impuesta por el cambio de modo hacia el kernel en comparación con el acceso directo a memoria (Figura \ref{fig:c11_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C11.png}
+	\caption{Medición de tiempos de ejecución y costos de acceso en nanosegundos con \texttt{tiempo.c}.}
+	\label{fig:c11_2}
+\end{figure}
+
+\subsection{Parte G. Un programa, tres drivers}
+Se examinó la relación directa entre los programas de prácticas anteriores y los drivers subyacentes del sistema operativo. Se ejecutó el programa \texttt{sensor\_combinado} interceptando sus aperturas y llamadas \texttt{ioctl} con \texttt{strace}, lo que permitió identificar la interacción directa con los archivos de dispositivo correspondientes al bus I2C (\texttt{/dev/i2c-1}) y al controlador SPI (\texttt{/dev/spidev0.0}), tal como se ilustra en la Figura \ref{fig:c12_2}. Complementariamente, se inspeccionaron los drivers activos en el kernel mediante \texttt{lsmod}, \texttt{gpiodetect} y la exploración del sistema de archivos virtual \texttt{sysfs} en \texttt{/sys/bus/i2c/devices} y \texttt{/sys/bus/platform/drivers}, contrastando los módulos cargados con aquellos integrados estáticamente en la imagen del kernel (Figura \ref{fig:c13_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C12.png}
+	\caption{Interceptación con \texttt{strace} de los dispositivos abiertos por \texttt{sensor\_combinado}.}
+	\label{fig:c12_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C13.png}
+	\caption{Inspección de nodos en \texttt{/dev}, módulos activos en \texttt{lsmod} y registros en \texttt{sysfs}.}
+	\label{fig:c13_2}
+\end{figure}
+
+\subsection{Reto final: p6cnt}
+Como parte del reto final de la práctica, se desarrolló desde cero el módulo \texttt{p6cnt.c} para crear el dispositivo de caracteres virtual \texttt{/dev/p6cnt}, el cual contabiliza las aperturas, permite reiniciar el contador mediante la palabra clave \texttt{reset} y rechaza escrituras con argumentos no válidos. Se actualizó el archivo \texttt{Makefile} para compilar de manera conjunta todos los módulos de la práctica, generando el binario \texttt{p6cnt.ko} (Figura \ref{fig:c14_2}). Tras su inserción en el kernel, se realizaron pruebas funcionales leyendo consecutivamente del dispositivo, enviando el comando de reinicio, y evaluando el código de error devuelto ante entradas inválidas antes de descargar el módulo y verificar el registro final en \texttt{dmesg} (Figura \ref{fig:c15_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C14.png}
+	\caption{Actualización del \texttt{Makefile} y compilación exitosa del módulo del reto \texttt{p6cnt}.}
+	\label{fig:c14_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C15.png}
+	\caption{Pruebas funcionales de conteo, comando \texttt{reset} y manejo de errores en \texttt{/dev/p6cnt}.}
+	\label{fig:c15_2}
+\end{figure}
+
+\subsection{Parte H. Descargar los módulos y entregar}
+En esta parte, se automatizó la descarga de los módulos desarrollados mediante el script \texttt{descargar.sh}, el cual verificó de forma ordenada que no quedara ningún módulo activo ni nodos de dispositivo remanentes en \texttt{/dev}. Las salidas del script y la información de cierre del búfer del kernel se inspeccionaron satisfactoriamente (Figura \ref{fig:c16_2}). Concluidas las pruebas, se consolidó toda la documentación requerida en \texttt{evidencia.md} y se registró el avance completo en el repositorio de control de versiones Git de la materia mediante \texttt{git add} y \texttt{git commit} (Figura \ref{fig:c17}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C16.png}
+	\caption{Ejecución del script \texttt{descargar.sh} y validación de la limpieza del sistema.}
+	\label{fig:c16_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C17.png}
+	\caption{Consolidación de la evidencia y registro del commit final en el repositorio Git.}
+	\label{fig:c17}
+\end{figure}
+
+
 \section{Resultados y Análisis}
 
 Contenido pendiente: Presentar los resultados obtenidos de cada parte del desarrollo.
@@ -250,7 +398,9 @@ Contenido pendiente: Presentar los resultados obtenidos de cada parte del desarr
 \section{Conclusiones}
 
 \textbf{Belmont Muñoz Samuel}. \\
-Conclusión pendiente.
+A través de esta práctica se consolidó la comprensión de la frontera entre el espacio de usuario y el espacio de kernel mediante la compilación e inserción de módulos y el desarrollo de un driver de caracteres virtual. Asimismo, el uso de herramientas de diagnóstico y pruebas de rendimiento permitió dimensionar el costo computacional de las llamadas al sistema y los cambios de modo. Se identificaron los controladores subyacentes que gestionan los dispositivos físicos en sistemas embebidos.
+
+Se cumplieron los objetivos planteados.
 
 \textbf{Domínguez Palacios Jesús Alejandro}. \\
 Conclusión pendiente.
