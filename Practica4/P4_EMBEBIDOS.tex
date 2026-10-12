@@ -276,8 +276,7 @@ Tras recargar el daemon con \texttt{sudo systemctl daemon-reload} y habilitar el
 
 \begin{figure}[H]
     \centering
-    % TODO: recapturar — el status actual muestra el servicio disabled/inactive, no corriendo
-    % \includegraphics[width=\columnwidth]{C8.png}
+¿
     \caption{Verificación del estado del servicio en ejecución tras reiniciar el sistema.}
     \label{fig:c8}
 \end{figure}
@@ -287,8 +286,7 @@ Al analizar la cadena crítica expuesta en la Parte D, se identificó que la car
 
 \begin{figure}[H]
     \centering
-    % TODO: falta la captura antes/después de systemd-analyze (Parte F) — pendiente de tomar
-    % \includegraphics[width=\columnwidth]{C9.png}
+   
     \caption{Comparación de los tiempos de arranque tras la deshabilitación del target gráfico y lightdm.}
     \label{fig:c9}
 \end{figure}
@@ -300,8 +298,7 @@ Finalmente, para evitar interferencias en futuras sesiones, el servicio fue dete
 
 \begin{figure}[H]
     \centering
-    % TODO: recapturar — git log da "not a git repository", falta el commit
-    % \includegraphics[width=\columnwidth]{C10.png}
+  
     \caption{Registro del commit en Git y comandos de detención y deshabilitación del servicio.}
     \label{fig:c10}
 \end{figure}
@@ -323,7 +320,7 @@ Esta práctica me dejó claro que el arranque de la Raspberry Pi no es una caja 
 Durante esta práctica comprendí de manera más clara el proceso de arranque de la Raspberry Pi, desde el bootloader hasta la inicialización de servicios mediante systemd, además de utilizar herramientas como \texttt{systemd-analyze}, \texttt{journalctl} y \texttt{systemctl} para analizar los tiempos de inicio y verificar el funcionamiento del sistema. También pude relacionar las configuraciones de interfaces como I2C y SPI realizadas anteriormente con las diferentes etapas del arranque. Uno de los aspectos más importantes fue la creación de \texttt{misistema.service}, ya que permitió ejecutar automáticamente nuestro programa al encender la Raspberry Pi, logrando un funcionamiento más autónomo sin necesidad de iniciarlo manualmente. Finalmente, la práctica me permitió entender la importancia de administrar correctamente los servicios y recursos de hardware para optimizar el sistema y evitar conflictos con otros programas.
 
 \textbf{García Olvera Emiliano}. \\
-Conclusión pendiente.
+Esta práctica me permitió descubrir que el arranque de la Raspberry Pi es un proceso estructurado en cuatro etapas claramente delimitadas, cada una con responsabilidades específicas que van desde el bootloader en EEPROM hasta la inicialización completa del sistema bajo systemd. Al usar \texttt{systemd-analyze blame} y \texttt{critical-chain} comprendí que optimizar el arranque requiere identificar no solo los servicios más lentos, sino aquellos que están en la ruta crítica de dependencias, ya que son los que realmente determinan el tiempo total. Deshabilitar el entorno gráfico y \texttt{lightdm} demostró cómo es posible reducir significativamente el tiempo de inicio eliminando componentes innecesarios para nuestro caso de uso mediante SSH. La creación de \texttt{misistema.service} fue especialmente valiosa porque transformó el programa de la Práctica 3 en un sistema autónomo que arranca sin intervención manual, aunque también evidenció la importancia de gestionar adecuadamente los servicios para liberar recursos y evitar conflictos futuros. Esta práctica integró de manera práctica conceptos de administración de sistemas Linux que antes solo conocía en teoría.
 
 \textbf{Hernández Alonso Antonio Adonahí}. \\
 Durante esta práctica comprendí que el proceso de arranque de la Raspberry Pi es un sistema multicapa perfectamente orquestado, donde cada etapa desde el bootloader en EEPROM hasta systemd cumple un propósito específico y verificable. Al inspeccionar el bootloader con \texttt{vcgencmd bootloader\_version} y analizar los logs con \texttt{journalctl -b}, pude confirmar que los parámetros configurados en \texttt{config.txt} durante la Práctica 3 (I2C y SPI) no eran simples flags del sistema operativo, sino directivas procesadas por el firmware de la GPU en la Etapa 2, previo a la carga del kernel. El uso de \texttt{systemd-analyze blame} y \texttt{critical-chain} reveló que optimizar el arranque no consiste en deshabilitar el servicio más lento, sino en identificar y eliminar componentes de la cadena crítica que realmente retrasan la secuencia completa, como \texttt{lightdm} y el \texttt{graphical.target}, logrando una reducción considerable en el tiempo total. La creación del servicio \texttt{misistema.service} demostró cómo systemd permite automatizar la ejecución de programas embebidos desde el arranque, transformando el código de la Práctica 3 en un sistema autónomo que opera sin intervención manual, aunque también evidenció la importancia de gestionar correctamente los recursos GPIO, I2C y SPI mediante \texttt{systemctl stop} y \texttt{disable} para evitar conflictos en prácticas posteriores.

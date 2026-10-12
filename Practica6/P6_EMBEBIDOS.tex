@@ -1,0 +1,430 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% Configuración para español
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% Paquetes estándar IEEE
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{listings} % Para código
+
+% ---------- Configuración de listados de código ----------
+\definecolor{codegray}{rgb}{0.45,0.45,0.45}
+\definecolor{codeblue}{rgb}{0.10,0.10,0.60}
+\lstset{
+	basicstyle=\ttfamily\scriptsize,
+	keywordstyle=\color{codeblue}\bfseries,
+	commentstyle=\color{codegray}\itshape,
+	stringstyle=\color{codegray},
+	numbers=left,
+	numberstyle=\tiny\color{codegray},
+	numbersep=5pt,
+	frame=single,
+	breaklines=true,
+	breakatwhitespace=true,
+	showstringspaces=false,
+	tabsize=2,
+	captionpos=b,
+	literate=%
+	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+	{ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+
+% ---------- Espacio reservado para imágenes faltantes ----------
+\newcommand{\imgph}[2]{%
+	\fbox{\begin{minipage}[c][#2][c]{0.92\columnwidth}
+			\centering\textcolor{codegray}{\footnotesize [Espacio para imagen: #1]}
+	\end{minipage}}%
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+	T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Práctica 6: Módulos de Kernel y Dispositivos de Caracteres}
+
+\author{
+	\IEEEauthorblockN{Belmont Muñoz Samuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 317318289}
+	\and
+	\IEEEauthorblockN{Domínguez Palacios Jesús Alejandro}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 421066205}
+	\and
+	\IEEEauthorblockN{Dorantes Mejía Emmanuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 313004766}
+	\and
+	\IEEEauthorblockN{García Olvera Emiliano}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 314256009}
+	\and
+	\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320257780}
+	\and
+	\IEEEauthorblockN{Jiménez Reyes Alan Yael}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320026726}
+}
+
+\maketitle
+
+\begin{center}
+	\vspace{-0.3cm}
+	{\small
+		\textbf{Práctica No.:} 6 \quad | \quad
+		\textbf{Grupo:} 6 \quad | \quad
+		\textbf{Fecha:} 12/10/2026
+	}
+	\vspace{0.2cm}
+\end{center}
+
+\begin{abstract}
+	Este reporte documenta el desarrollo de módulos de kernel y drivers de dispositivos de caracteres en Linux embebido sobre Raspberry Pi 4. Se describe la compilación, carga y descarga de módulos mediante \texttt{insmod} y \texttt{rmmod}, el paso de parámetros a módulos y su inspección en \texttt{/sys/module}, y la implementación de un driver de caracteres virtual que expone las operaciones \texttt{open}, \texttt{read} y \texttt{write}. El documento aborda el uso de \texttt{copy\_from\_user} y \texttt{copy\_to\_user} para transferencia segura de datos entre espacio de kernel y espacio de usuario, la medición de costos de syscalls mediante \texttt{strace}, y la identificación de drivers utilizados por programas de prácticas anteriores. Se demuestra experimentalmente la frontera entre el espacio de usuario y el espacio de kernel del sistema operativo.
+\end{abstract}
+
+\begin{IEEEkeywords}
+	Kernel, módulos, drivers, dispositivos de caracteres, insmod, rmmod, copy\_from\_user, strace, sysfs, Raspberry Pi
+\end{IEEEkeywords}
+
+\section{Objetivo}
+
+\subsection{Objetivo General}
+Compilar, cargar y descargar módulos de kernel en la Raspberry Pi 4, y construir un driver de dispositivos de caracteres virtual para comprender la frontera entre el espacio de usuario y el espacio de kernel.
+
+\subsection{Objetivos Específicos}
+\begin{itemize}
+	\item Comprobar que los headers del kernel instalados corresponden al kernel en ejecución.
+	\item Compilar un módulo mínimo, cargarlo con \texttt{insmod}, descargarlo con \texttt{rmmod}, y leer su salida con \texttt{dmesg}.
+	\item Pasar parámetros a un módulo y consultarlos en \texttt{/sys/module}.
+	\item Implementar las operaciones \texttt{open}, \texttt{read} y \texttt{write} de un dispositivo de caracteres utilizando \texttt{copy\_from\_user} y \texttt{copy\_to\_user}.
+	\item Observar con \texttt{strace} las syscalls que llegan al driver y medir su costo frente a un acceso directo a memoria de usuario.
+	\item Identificar, mediante \texttt{strace}, \texttt{lsmod} y \texttt{sysfs}, los archivos de dispositivo y los drivers utilizados por programas de prácticas anteriores (GPIO, I2C, SPI).
+\end{itemize}
+
+\section{Introducción}
+
+El kernel de Linux es la capa de software que gestiona directamente el hardware, proporciona abstracciones para procesos de usuario, y garantiza el aislamiento y seguridad del sistema. Los módulos de kernel permiten extender la funcionalidad del kernel en tiempo de ejecución sin recompilar ni reiniciar el sistema completo.
+
+\subsection{Espacio de Usuario vs. Espacio de Kernel}
+
+Los sistemas operativos modernos dividen la memoria en dos regiones protegidas por hardware:
+
+\begin{itemize}
+	\item \textbf{Espacio de usuario (user space)}: Donde ejecutan las aplicaciones normales. Tiene acceso restringido a memoria, no puede ejecutar instrucciones privilegiadas, y no puede acceder directamente al hardware. Un error en espacio de usuario solo afecta al proceso que lo causó.
+
+	\item \textbf{Espacio de kernel (kernel space)}: Donde ejecuta el kernel y sus módulos. Tiene acceso completo a toda la memoria, puede ejecutar cualquier instrucción del procesador, y controla directamente el hardware. Un error en espacio de kernel puede colapsar todo el sistema.
+\end{itemize}
+
+Las llamadas al sistema (syscalls) son el mecanismo por el cual el espacio de usuario solicita servicios del kernel, como abrir archivos, crear procesos, o acceder a dispositivos. La syscall causa una transición de modo usuario a modo kernel (privileged mode), ejecuta la operación solicitada, y retorna al modo usuario con el resultado.
+
+\subsection{Módulos de Kernel}
+
+Un módulo de kernel es código que puede cargarse y descargarse dinámicamente del kernel en ejecución. Los módulos típicamente implementan drivers de dispositivos, sistemas de archivos, o protocolos de red. Las ventajas de los módulos incluyen:
+
+\begin{itemize}
+	\item No requieren recompilar el kernel completo.
+	\item Pueden cargarse solo cuando se necesitan, reduciendo el uso de memoria.
+	\item Permiten desarrollo y depuración sin reiniciar el sistema.
+	\item Facilitan la distribución de drivers propietarios sin modificar el código del kernel.
+\end{itemize}
+
+Los módulos se compilan contra los headers del kernel instalado, que deben coincidir exactamente con la versión del kernel en ejecución. El comando \texttt{uname -r} muestra la versión actual, y los headers se instalan mediante \texttt{apt install raspberrypi-kernel-headers}.
+
+\subsection{Dispositivos de Caracteres}
+
+Linux clasifica los dispositivos en tres categorías principales: dispositivos de bloque (discos), dispositivos de caracteres (terminales, puertos serie, sensores), y dispositivos de red. Los dispositivos de caracteres son aquellos que se acceden como flujos de bytes sin estructura de bloques definida.
+
+Un driver de caracteres implementa un conjunto de operaciones definidas en la estructura \texttt{file\_operations}:
+
+\begin{lstlisting}[language=C]
+struct file_operations {
+    int (*open)(struct inode *, struct file *);
+    int (*release)(struct inode *, struct file *);
+    ssize_t (*read)(struct file *, char __user *, size_t, loff_t *);
+    ssize_t (*write)(struct file *, const char __user *, size_t, loff_t *);
+    // ... otras operaciones
+};
+\end{lstlisting}
+
+El kernel invoca estas funciones cuando el espacio de usuario ejecuta syscalls como \texttt{open()}, \texttt{read()}, o \texttt{write()} sobre el archivo de dispositivo correspondiente.
+
+\subsection{Transferencia Segura de Datos}
+
+El kernel no puede acceder directamente a punteros del espacio de usuario debido a razones de seguridad y protección de memoria. Las funciones \texttt{copy\_from\_user()} y \texttt{copy\_to\_user()} realizan transferencias verificadas:
+
+\begin{lstlisting}[language=C]
+// Copia desde usuario hacia kernel
+unsigned long copy_from_user(void *to, const void __user *from, unsigned long n);
+
+// Copia desde kernel hacia usuario
+unsigned long copy_to_user(void __user *to, const void *from, unsigned long n);
+\end{lstlisting}
+
+Estas funciones verifican que las direcciones de memoria sean válidas, que el proceso tenga permisos de acceso, y manejan fallos de página si la memoria está paginada a disco. Retornan el número de bytes que no pudieron copiarse (0 indica éxito completo).
+
+\subsection{Herramientas de Inspección}
+
+\begin{itemize}
+	\item \texttt{lsmod}: Lista módulos cargados actualmente en el kernel.
+	\item \texttt{modinfo}: Muestra información sobre un módulo (parámetros, autor, licencia).
+	\item \texttt{dmesg}: Lee el buffer circular del kernel donde se registran mensajes mediante \texttt{printk()}.
+	\item \texttt{strace}: Intercepta y registra todas las syscalls ejecutadas por un proceso, mostrando argumentos y resultados.
+	\item \texttt{/sys/module/}: Sistema de archivos virtual que expone información sobre módulos cargados, incluyendo parámetros.
+\end{itemize}
+
+\subsection{Conceptos Aplicados en Esta Práctica}
+
+La Tabla~\ref{tab:conceptos} resume los conceptos fundamentales de kernel y su aplicación concreta en las distintas partes de esta práctica. Cada concepto que antes era invisible se hará explícito mediante herramientas de inspección y módulos creados manualmente.
+
+\begin{table}[H]
+	\centering
+	\caption{Conceptos de kernel aplicados en esta práctica}
+	\label{tab:conceptos}
+	\small
+	\begin{tabular}{|p{2.2cm}|p{3.2cm}|p{2.2cm}|}
+		\hline
+		\textbf{Concepto} & \textbf{Definición} & \textbf{En esta práctica} \\
+		\hline
+		Espacio de usuario & Región donde corren los programas comunes. Tiene acceso restringido: no puede tocar el hardware ni la memoria de otros procesos. & \texttt{cliente.c} y \texttt{tiempo.c} (Partes E y F), igual que todo el código de las prácticas 1 a 5. \\
+		\hline
+		Espacio de kernel & Región donde corre el kernel de Linux. Tiene acceso total al hardware y a la memoria de todos los procesos. & \texttt{hola.ko}, \texttt{parametros.ko} y \texttt{p6buf.ko}. \\
+		\hline
+		Llamada al sistema (syscall) & Mecanismo con el que un programa de usuario pide un servicio al kernel: \texttt{open}, \texttt{read}, \texttt{write}, \texttt{ioctl}, \texttt{pipe}. & Las que \texttt{strace} muestra al ejecutar cliente (Parte E). \\
+		\hline
+		Cambio de modo & Al hacer una syscall el procesador guarda el contexto del programa, pasa a modo kernel, ejecuta el servicio y regresa. Cada cruce consume tiempo. & Se mide en la Parte F. \\
+		\hline
+		Módulo del kernel & Archivo \texttt{.ko} con código de kernel que se carga y se descarga sin reiniciar el sistema. & \texttt{insmod}, \texttt{lsmod} y \texttt{rmmod} (Partes B a D). \\
+		\hline
+		Driver & Código de kernel específico de un dispositivo. Traduce las syscalls genéricas en las operaciones que ese dispositivo entiende. Puede ser un módulo o venir integrado en la imagen del kernel. & \texttt{p6buf} (Parte D) y los drivers reales de la Parte G. \\
+		\hline
+		Archivo de dispositivo & Entrada de \texttt{/dev} por la que un programa de usuario llega a un driver. & \texttt{/dev/p6buf} y \texttt{/dev/gpiochip0}. \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\subsection{Relación con Prácticas Anteriores}
+
+En prácticas anteriores se utilizaron drivers del kernel de forma transparente: \texttt{gpiod} para control de GPIO (Práctica 2), \texttt{i2c-dev} para comunicación I2C, y \texttt{spidev} para comunicación SPI (Práctica 3). Esta práctica desmitifica esos componentes, mostrando cómo están implementados y cómo interactúan con el espacio de usuario.
+
+\section{Desarrollo}
+
+\subsection{Material y Equipo}
+
+Para la realización de esta práctica se utilizaron los siguientes elementos:
+
+\begin{itemize}
+	\item Raspberry Pi 4 Model B con Raspberry Pi OS instalado
+	\item Headers del kernel (\texttt{raspberrypi-kernel-headers}) correspondientes a la versión en ejecución
+	\item Toolchain de desarrollo en C (GCC) con soporte para compilación de módulos
+	\item Repositorio Git del curso con programas de prácticas anteriores
+	\item Laptop con acceso SSH al sistema (o teclado y monitor conectados directamente)
+	\item Conexión a Internet para instalación de headers del kernel
+	\item Circuito de LEDs/sensores de prácticas 2 y 3 (opcional, no requerido para funcionamiento básico)
+\end{itemize}
+
+\textbf{Nota}: No se requiere hardware adicional. El driver desarrollado es virtual y no controla dispositivos físicos reales, aunque los programas de prácticas anteriores que utilizan GPIO, I2C y SPI se analizarán para identificar sus interacciones con drivers del kernel.
+
+
+\subsection{Parte A. Entorno y headers del kernel}
+Para iniciar el desarrollo de la práctica, se verificó exhaustivamente el entorno operativo del sistema y la correspondencia de los headers del kernel en ejecución. Mediante la ejecución de comandos informativos en la terminal como \texttt{uname -r}, \texttt{uname -m}, \texttt{dpkg --print-architecture}, la lectura de la versión del sistema operativo en \texttt{/etc/os-release} y la consulta de la versión del compilador GCC, se determinó que el entorno opera bajo una arquitectura de 64 bits con el kernel \texttt{6.18.39+rpt-rpi-v8} sobre Debian Trixie, tal como se aprecia en la Figura \ref{fig:c1_2}. Posteriormente, se comprobó la existencia del archivo \texttt{Makefile} dentro del directorio de headers del kernel y se resolvió la ruta absoluta mediante \texttt{readlink}, confirmando la concordancia exacta con la versión activa del sistema operativo (Figura \ref{fig:c2_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C1.png}
+	\caption{Identificación del kernel, arquitectura, distribución y versión del compilador.}
+	\label{fig:c1_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C2.png}
+	\caption{Verificación de los headers del kernel y resolución de la ruta de compilación con \texttt{readlink}.}
+	\label{fig:c2_2}
+\end{figure}
+
+\subsection{Parte B. Módulo mínimo: cargar y descargar}
+En esta sección se diseñó e implementó un módulo de kernel mínimo denominado \texttt{hola.c} utilizando las macros \texttt{module\_init} y \texttt{module\_exit} junto con la función \texttt{pr\_info} para registrar mensajes directamente en el búfer circular del kernel. Tras configurar el archivo \texttt{Makefile}, se ejecutó \texttt{make} para compilar el módulo y generar el archivo binario \texttt{hola.ko}, inspeccionando su metainformación con \texttt{modinfo} y validando que el campo \texttt{vermagic} coincidiera de manera precisa con la versión del kernel activo (Figura \ref{fig:c3_2}). En seguida, se cargó el módulo ejecutando \texttt{sync} previo a \texttt{sudo insmod hola.ko}, comprobando su correcta inserción mediante \texttt{dmesg}, \texttt{lsmod}, la inspección del directorio \texttt{/sys/module/hola}, y verificando que el módulo no se ejecuta como un proceso tradicional de espacio de usuario en \texttt{ps}, para finalmente descargarlo con \texttt{sudo rmmod hola} (Figura \ref{fig:c4_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C3.png}
+	\caption{Compilación de \texttt{hola.c} e inspección de metainformación del módulo con \texttt{modinfo}.}
+	\label{fig:c3_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C4.png}
+	\caption{Carga, inspección en el sistema y descarga del módulo mínimo \texttt{hola}.}
+	\label{fig:c4_2}
+\end{figure}
+
+\subsection{Parte C. Parámetros del módulo y sysfs}
+La práctica continuó con la integración de parámetros configurables en módulos mediante \texttt{parametros.c}, incorporando variables dinámicas como \texttt{nombre} y \texttt{veces} por medio de la macro \texttt{module\_param}. Tras compilar y actualizar el \texttt{Makefile}, se cargó el módulo utilizando los valores por defecto y posteriormente sobreescribiendo dichos parámetros directamente desde la línea de comandos con \texttt{nombre=Pi veces=3}, observando la correcta emisión de los mensajes iterativos en el registro del kernel (Figura \ref{fig:c5_2}). Asimismo, se exploró el sistema de archivos virtual \texttt{sysfs} en \texttt{/sys/module/parametros/parameters/}, modificando de forma interactiva el valor de la variable \texttt{veces} a través de \texttt{tee} y comprobando la restricción de validación al intentar insertar un valor fuera del rango permitido (\texttt{veces=9}), lo cual arrojó un código de error controlado por el kernel (Figura \ref{fig:c6_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C5.png}
+	\caption{Carga inicial de \texttt{parametros.ko} y ejecución posterior pasando argumentos personalizados.}
+	\label{fig:c5_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C6.png}
+	\caption{Inspección en \texttt{sysfs}, modificación de variables y manejo de errores por parámetros fuera de rango.}
+	\label{fig:c6_2}
+\end{figure}
+
+\subsection{Parte D. Dispositivo de caracteres virtual}
+En esta parte se desarrolló un driver de caracteres virtual denominado \texttt{p6buf.c}, el cual reserva un búfer interno de 256 bytes en el espacio de kernel y expone el archivo de dispositivo \texttt{/dev/p6buf} mediante la interfaz \texttt{miscdevice}. Se actualizó el archivo \texttt{Makefile} para compilar este nuevo módulo junto con los desarrollados en las fases previas (Figura \ref{fig:c7_2}). Una vez cargado el módulo con \texttt{insmod}, se verificó la creación automática del nodo de dispositivo en \texttt{/dev/p6buf} con sus respectivos permisos y número menor dinámico, comprobando las operaciones de escritura y lectura mediante comandos estándar como \texttt{echo} y \texttt{cat}, además de evaluar la respuesta de rechazo y el código de error devuelto ante una escritura que excede la capacidad máxima del búfer (Figura \ref{fig:c8_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C7.png}
+	\caption{Actualización del archivo \texttt{Makefile} para la compilación conjunta de los módulos de la práctica.}
+	\label{fig:c7_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C8.png}
+	\caption{Carga de \texttt{p6buf.ko}, pruebas de lectura/escritura en \texttt{/dev/p6buf} y manejo de desbordamiento.}
+	\label{fig:c8_2}
+\end{figure}
+
+\subsection{Parte E. Del programa de usuario al driver}
+Se construyó el programa \texttt{cliente.c} para interactuar desde el espacio de usuario con el driver \texttt{/dev/p6buf}. Tras compilar con \texttt{gcc}, se ejecutó el cliente pasando distintos textos y se inspeccionó el registro del kernel mediante \texttt{dmesg}, observando detalladamente las aperturas y escrituras asociadas al PID del proceso. Asimismo, se empleó la herramienta \texttt{strace} para trazar las llamadas al sistema (\textit{syscalls}) como \texttt{openat}, \texttt{read}, \texttt{write}, \texttt{lseek} y \texttt{close} invocadas por el cliente (Figura \ref{fig:c9_2}). Posteriormente, se compiló y ejecutó de forma similar el programa de comunicación entre procesos \texttt{demo\_ipc}, interceptando las syscalls de tuberías y clonación con \texttt{strace} (Figura \ref{fig:c10_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C9.png}
+	\caption{Ejecución de \texttt{cliente.c} y rastreo de llamadas al sistema mediante \texttt{strace}.}
+	\label{fig:c9_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C10.png}
+	\caption{Trazado de syscalls de comunicación entre procesos con \texttt{demo\_ipc} y \texttt{strace}.}
+	\label{fig:c10_2}
+\end{figure}
+
+\subsection{Parte F. Costo de cruzar al kernel}
+La evaluación del costo temporal de cruzar al espacio de kernel se realizó mediante el programa \texttt{tiempo.c}, el cual mide con alta precisión temporal operaciones repetitivas de acceso a memoria de usuario, la llamada al sistema \texttt{syscall(SYS\_getppid)}, lecturas mediante \texttt{pread} sobre el dispositivo virtual \texttt{/dev/p6buf}, y transferencias a través del bus SPI. Tras compilar con la optimización \texttt{-O2}, se realizaron tres ejecuciones consecutivas del programa, obteniendo métricas en nanosegundos que evidencian la sobrecarga impuesta por el cambio de modo hacia el kernel en comparación con el acceso directo a memoria (Figura \ref{fig:c11_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C11.png}
+	\caption{Medición de tiempos de ejecución y costos de acceso en nanosegundos con \texttt{tiempo.c}.}
+	\label{fig:c11_2}
+\end{figure}
+
+\subsection{Parte G. Un programa, tres drivers}
+Se examinó la relación directa entre los programas de prácticas anteriores y los drivers subyacentes del sistema operativo. Se ejecutó el programa \texttt{sensor\_combinado} interceptando sus aperturas y llamadas \texttt{ioctl} con \texttt{strace}, lo que permitió identificar la interacción directa con los archivos de dispositivo correspondientes al bus I2C (\texttt{/dev/i2c-1}) y al controlador SPI (\texttt{/dev/spidev0.0}), tal como se ilustra en la Figura \ref{fig:c12_2}. Complementariamente, se inspeccionaron los drivers activos en el kernel mediante \texttt{lsmod}, \texttt{gpiodetect} y la exploración del sistema de archivos virtual \texttt{sysfs} en \texttt{/sys/bus/i2c/devices} y \texttt{/sys/bus/platform/drivers}, contrastando los módulos cargados con aquellos integrados estáticamente en la imagen del kernel (Figura \ref{fig:c13_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C12.png}
+	\caption{Interceptación con \texttt{strace} de los dispositivos abiertos por \texttt{sensor\_combinado}.}
+	\label{fig:c12_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C13.png}
+	\caption{Inspección de nodos en \texttt{/dev}, módulos activos en \texttt{lsmod} y registros en \texttt{sysfs}.}
+	\label{fig:c13_2}
+\end{figure}
+
+\subsection{Reto final: p6cnt}
+Como parte del reto final de la práctica, se desarrolló desde cero el módulo \texttt{p6cnt.c} para crear el dispositivo de caracteres virtual \texttt{/dev/p6cnt}, el cual contabiliza las aperturas, permite reiniciar el contador mediante la palabra clave \texttt{reset} y rechaza escrituras con argumentos no válidos. Se actualizó el archivo \texttt{Makefile} para compilar de manera conjunta todos los módulos de la práctica, generando el binario \texttt{p6cnt.ko} (Figura \ref{fig:c14_2}). Tras su inserción en el kernel, se realizaron pruebas funcionales leyendo consecutivamente del dispositivo, enviando el comando de reinicio, y evaluando el código de error devuelto ante entradas inválidas antes de descargar el módulo y verificar el registro final en \texttt{dmesg} (Figura \ref{fig:c15_2}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C14.png}
+	\caption{Actualización del \texttt{Makefile} y compilación exitosa del módulo del reto \texttt{p6cnt}.}
+	\label{fig:c14_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C15.png}
+	\caption{Pruebas funcionales de conteo, comando \texttt{reset} y manejo de errores en \texttt{/dev/p6cnt}.}
+	\label{fig:c15_2}
+\end{figure}
+
+\subsection{Parte H. Descargar los módulos y entregar}
+En esta parte, se automatizó la descarga de los módulos desarrollados mediante el script \texttt{descargar.sh}, el cual verificó de forma ordenada que no quedara ningún módulo activo ni nodos de dispositivo remanentes en \texttt{/dev}. Las salidas del script y la información de cierre del búfer del kernel se inspeccionaron satisfactoriamente (Figura \ref{fig:c16_2}). Concluidas las pruebas, se consolidó toda la documentación requerida en \texttt{evidencia.md} y se registró el avance completo en el repositorio de control de versiones Git de la materia mediante \texttt{git add} y \texttt{git commit} (Figura \ref{fig:c17}).
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C16.png}
+	\caption{Ejecución del script \texttt{descargar.sh} y validación de la limpieza del sistema.}
+	\label{fig:c16_2}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\columnwidth]{C17.png}
+	\caption{Consolidación de la evidencia y registro del commit final en el repositorio Git.}
+	\label{fig:c17}
+\end{figure}
+
+
+\section{Resultados y Análisis}
+
+Contenido pendiente: Presentar los resultados obtenidos de cada parte del desarrollo.
+
+\section{Conclusiones}
+
+\textbf{Belmont Muñoz Samuel}. \\
+A través de esta práctica se consolidó la comprensión de la frontera entre el espacio de usuario y el espacio de kernel mediante la compilación e inserción de módulos y el desarrollo de un driver de caracteres virtual. Asimismo, el uso de herramientas de diagnóstico y pruebas de rendimiento permitió dimensionar el costo computacional de las llamadas al sistema y los cambios de modo. Se identificaron los controladores subyacentes que gestionan los dispositivos físicos en sistemas embebidos.
+
+Se cumplieron los objetivos planteados.
+
+\textbf{Domínguez Palacios Jesús Alejandro}. \\
+Conclusión pendiente.
+
+\textbf{Dorantes Mejía Emmanuel}. \\
+Conclusión pendiente.
+
+\textbf{García Olvera Emiliano}. \\
+En esta práctica aprendí que un módulo de kernel es código que corre dentro del propio sistema operativo, no como un programa más, y que debe compilarse con los headers exactos del kernel que se está usando. También vi cómo un driver es el intermediario entre los programas de usuario y lo que hay detrás de un archivo de /dev: es el driver quien decide qué significan read y write, y por eso debe validar con cuidado lo que recibe (por ejemplo, rechazar escrituras mayores al buffer).
+Con las mediciones comprobé que cada paso de un programa de usuario al kernel tiene un costo, y que hablar con hardware real, como el SPI, es todavía más lento. Esto muestra por qué en sistemas embebidos conviene reducir el número de llamadas al sistema. Finalmente, al crear mi propio módulo p6cnt, pude aplicar todo lo visto: registrar un dispositivo, manejar lecturas y escrituras y limpiarlo correctamente al descargar el módulo.
+
+\textbf{Hernández Alonso Antonio Adonahí}. \\
+Esta práctica reveló cómo funcionan internamente los mecanismos que antes usaba sin entenderlos: cada operación de lectura o escritura ejecuta código del kernel a través de file\_operations, y cruzar al espacio privilegiado tiene un costo medible. Implementar el driver p6buf demostró que las funciones copy\_from\_user y copy\_to\_user son fundamentales para seguridad, ya que el kernel nunca debe confiar en punteros del usuario. Usar strace para analizar programas anteriores confirmó que todos los accesos a hardware pasan por drivers como gpiod, i2c-dev o spidev. Las mediciones cuantificaron lo que antes era solo teoría: memoria de usuario toma nanosegundos, syscalls básicas microsegundos, y operaciones de hardware real milisegundos. El módulo p6cnt integró todo lo aprendido: registro de dispositivo, validación de entrada y limpieza apropiada. Esta separación entre espacio de usuario y kernel explica la robustez de Linux: un error en mi código no puede afectar el sistema completo.
+
+\textbf{Jiménez Reyes Alan Yael}. \\
+Conclusión pendiente.
+
+\begin{thebibliography}{00}
+	\bibitem{lkd} Robert Love. (2010). \textit{Linux Kernel Development}, 3rd ed. Addison-Wesley.
+	\bibitem{ldd3} Jonathan Corbet, Alessandro Rubini, Greg Kroah-Hartman. (2005). \textit{Linux Device Drivers}, 3rd ed. O'Reilly Media. Disponible en: https://lwn.net/Kernel/LDD3/
+	\bibitem{kernel_docs} The kernel development community. (2024). ``The Linux Kernel Documentation''. Disponible en: https://www.kernel.org/doc/html/latest/
+	\bibitem{module_programming} Peter Jay Salzman et al. (2024). ``The Linux Kernel Module Programming Guide''. Disponible en: https://sysprog21.github.io/lkmpg/
+	\bibitem{claude_code} Anthropic. (2025). ``Claude Code: AI-Powered Development Assistant''. Disponible en: https://claude.com/claude-code
+	\bibitem{strace_man} strace developers. (2024). ``strace(1) - Linux man page''. Disponible en: https://man7.org/linux/man-pages/man1/strace.1.html
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<meta name="theme-color" content="#ffffff">
+<title>FSE — Práctica 2: GPIO a fondo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
+  :root {
+    color-scheme: light only;
+    --bg: #ffffff; --surface: #ffffff; --surface2: #f3f5f9;
+    --ink: #101828; --muted: #55606e; --border: #e3e8ef;
+    --accent: #1d4ed8; --accent-soft: #eaf0ff;
+    --teal: #0b7d71; --teal-soft: #e6f7f4;
+    --warn: #9a3412; --warn-soft: #fdf0e6;
+    --red: #b91c1c; --red-soft: #fdecec;
+    --purple: #6d28d9; --purple-soft: #f2ecfe;
+    --mono: 'JetBrains Mono', monospace; --sans: 'Inter', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { color-scheme: light only; background: #ffffff; }
+  body { background: #ffffff; color: var(--ink); font-family: var(--sans); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 26px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; box-shadow: 0 1px 3px rgba(16,24,40,0.04); z-index: 5; }
+  .nav-left { display: flex; align-items: center; gap: 14px; }
+  .badge { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 9px; border-radius: 5px; background: var(--accent); color: #fff; }
+  .course-title { font-size: 13px; color: var(--muted); }
+  .nav-controls { display: flex; align-items: center; gap: 12px; }
+  .slide-counter { font-family: var(--mono); font-size: 12px; color: var(--muted); min-width: 60px; text-align: center; }
+  .btn { background: var(--surface); border: 1px solid var(--border); color: var(--ink); padding: 7px 15px; border-radius: 7px; cursor: pointer; font-size: 13px; font-family: var(--sans); font-weight: 600; transition: all 0.15s; }
+  .btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn:disabled:hover { background: var(--surface); border-color: var(--border); color: var(--ink); }
+  .slides-container { flex: 1; overflow: hidden; position: relative; }
+  .slide { position: absolute; inset: 0; padding: 34px 54px; display: none; flex-direction: column; justify-content: center; opacity: 0; transition: opacity 0.2s; overflow-y: auto; background: #ffffff; }
+  .slide.active { display: flex; opacity: 1; }
+  .eyebrow { font-family: var(--mono); font-size: 10.5px; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; font-weight: 700; }
+  .eyebrow.teal { color: var(--teal); } .eyebrow.warn { color: var(--warn); } .eyebrow.red { color: var(--red); } .eyebrow.purple { color: var(--purple); }
+  h1 { font-size: clamp(26px, 3.2vw, 44px); font-weight: 800; line-height: 1.12; margin-bottom: 16px; letter-spacing: -0.5px; color: var(--ink); }
+  h2 { font-size: clamp(17px, 2.1vw, 26px); font-weight: 800; line-height: 1.2; margin-bottom: 12px; color: var(--ink); }
+  h3 { font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+  p { font-size: 13.5px; line-height: 1.5; color: #344054; }
+  .lead { font-size: 17px; font-weight: 400; color: #475467; line-height: 1.6; max-width: 640px; }
+  .hl { color: var(--accent); font-weight: 700; } .hl-teal { color: var(--teal); font-weight: 700; } .hl-warn { color: var(--warn); font-weight: 700; } .hl-red { color: var(--red); font-weight: 700; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--surface2); padding: 1px 6px; border-radius: 4px; color: var(--accent); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: center; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 13px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px 17px; box-shadow: 0 1px 2px rgba(16,24,40,0.03); }
+  .card-accent { border-top: 3px solid var(--accent); } .card-teal { border-top: 3px solid var(--teal); } .card-warn { border-top: 3px solid var(--warn); } .card-red { border-top: 3px solid var(--red); } .card-purple { border-top: 3px solid var(--purple); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { background: var(--surface2); padding: 7px 11px; text-align: left; font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 6px 11px; border-bottom: 1px solid var(--border); font-size: 12px; color: #344054; }
+  tr:last-child td { border-bottom: none; }
+  ul.styled { list-style: none; }
+  ul.styled li { padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; color: #344054; display: flex; align-items: flex-start; gap: 10px; }
+  ul.styled li:last-child { border-bottom: none; }
+  ul.styled li::before { content: '→'; color: var(--accent); font-family: var(--mono); font-size: 11px; margin-top: 3px; flex-shrink: 0; font-weight: 700; }
+  kbd { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-family: var(--mono); font-size: 10px; color: var(--ink); }
+  .key-hint { position: fixed; bottom: 14px; right: 22px; font-family: var(--mono); font-size: 11px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  .progress-bar { height: 3px; background: var(--border); flex-shrink: 0; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--teal)); transition: width 0.3s; }
+  .cmd-big { font-family: var(--mono); font-size: 16px; background: var(--surface2); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 12px 18px; color: var(--ink); line-height: 1.55; white-space: pre-line; }
+  .cmd-code { font-family: var(--mono); font-size: 12px; background: var(--surface2); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 10px 14px; color: var(--ink); line-height: 1.42; white-space: pre-line; max-height: 320px; overflow-y: auto; }
+  .checklist-i { display: flex; flex-direction: column; gap: 8px; max-width: 820px; }
+  .check-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+  .check-box { width: 20px; height: 20px; min-width: 20px; border-radius: 6px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; margin-top: 1px; font-family: var(--mono); }
+  .check-text { font-size: 13.5px; color: #344054; }
+  .stepnum { width: 34px; height: 34px; min-width: 34px; border-radius: 50%; background: var(--accent); color: #fff; font-family: var(--mono); font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+  .step-row { display: flex; gap: 14px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .step-row:last-child { border-bottom: none; }
+  .step-text { font-size: 14px; color: var(--ink); line-height: 1.4; padding-top: 5px; }
+  .step-text b { color: var(--accent); }
+  .role-card { border-radius: 12px; border: 2px solid var(--border); padding: 14px 16px; }
+  .role-badge { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 6px; margin-bottom: 6px; }
+  .depth-tag { display: inline-block; font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 9px; border-radius: 6px; background: var(--red-soft); color: var(--red); margin-bottom: 8px; }
+  .theory-tag { display: inline-block; font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 9px; border-radius: 6px; background: var(--purple-soft); color: var(--purple); margin-bottom: 8px; }
+  .part-tag { display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 5px; background: var(--surface2); color: var(--muted); margin-left: 8px; }
+  .icon-box { display: flex; align-items: center; justify-content: center; padding: 6px; }
+  .icon-box svg { max-width: 100%; height: auto; }
+  .warning-box { background: var(--red-soft); border: 2px solid var(--red); border-radius: 12px; padding: 16px 20px; }
+  .pin-table { width: 100%; border-collapse: separate; border-spacing: 0 3px; font-size: 11px; }
+  .pin-row td { padding: 4px 8px; vertical-align: middle; }
+  .pin-num { font-family: var(--mono); font-weight: 700; font-size: 10px; color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .pin-label { font-family: var(--mono); font-size: 10.5px; padding: 3px 8px; border-radius: 5px; display: inline-block; }
+  .pf-power { background: #fdecec; color: #b91c1c; } .pf-gnd { background: #f1f3f6; color: #55606e; }
+  .pf-i2c { background: #f2ecfe; color: #6d28d9; } .pf-spi { background: #e6f7f4; color: #0b7d71; }
+  .pf-uart { background: #eaf0ff; color: #1d4ed8; } .pf-pwm { background: #fce7f3; color: #be185d; }
+  .pf-gpio { background: #f3f5f9; color: #101828; } .pf-resv { background: #f1f3f6; color: #9aa4b2; }
+  .pf-used { background: #fdf0e6; color: #9a3412; border: 1.5px solid #9a3412; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="nav-left">
+    <span class="badge">FSE · P02</span>
+    <span class="course-title">Fundamentos de Sistemas Embebidos — UNAM FI · Laboratorio P003</span>
+  </div>
+  <div class="nav-controls">
+    <button class="btn" id="prevBtn" onclick="changeSlide(-1)" disabled>← Ant</button>
+    <span class="slide-counter" id="counter">1 / 31</span>
+    <button class="btn" id="nextBtn" onclick="changeSlide(1)">Sig →</button>
+  </div>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+<div class="slides-container">
+
+<!-- 1 PORTADA -->
+<div class="slide active" id="slide-1">
+  <div style="max-width:660px;">
+    <div class="eyebrow">Práctica 2 · Calificada</div>
+    <h1>GPIO: entradas y<br><span class="hl">salidas digitales</span></h1>
+    <p class="lead">Antes de tocar el protoboard: cómo funciona realmente un pin GPIO, cómo cambió su arquitectura entre generaciones de Raspberry Pi, y por qué eso ya define qué herramientas usamos hoy.</p>
+  </div>
+</div>
+
+<!-- 2 OBJETIVO -->
+<div class="slide" id="slide-2">
+  <div class="eyebrow">Hoy</div>
+  <h2>Objetivo de la práctica</h2>
+  <div class="card card-accent" style="margin-bottom:14px;">
+    <p style="font-size:14px;">Controlar pines GPIO como salida (LEDs) y entrada (botones) desde C con libgpiod, y comprobar con hardware real la diferencia entre leer una entrada por polling y por eventos.</p>
+  </div>
+  <ul class="styled" style="max-width:800px;">
+    <li>Entender qué es y cómo se comporta eléctricamente un pin GPIO</li>
+    <li>Armar un circuito básico en protoboard</li>
+    <li>Controlar LEDs y leer botones desde C</li>
+    <li>Comparar polling vs eventos con hardware físico</li>
+  </ul>
+</div>
+
+<!-- 3 ANTES DE EMPEZAR -->
+<div class="slide" id="slide-3">
+  <div class="eyebrow red">Antes de tocar el protoboard</div>
+  <h2>¿Traes esto listo?</h2>
+  <div class="checklist-i">
+    <div class="check-item"><div class="check-box">✓</div><div class="check-text">Práctica 1 completada — toolchain (gcc, git) y repositorio funcionando</div></div>
+    <div class="check-item"><div class="check-box">✓</div><div class="check-text">SSH funcionando hacia tu Raspberry Pi</div></div>
+  </div>
+</div>
+
+<!-- 4 ROLES -->
+<div class="slide" id="slide-4">
+  <div class="eyebrow purple">Dinámica de trabajo</div>
+  <h2>Roles rotativos, misma lógica de siempre</h2>
+  <div class="two-col">
+    <div class="role-card" style="border-color:var(--accent); background:var(--accent-soft);">
+      <span class="role-badge" style="background:var(--accent); color:#fff;">Piloto</span>
+      <p style="font-size:13.5px;">Escribe los comandos y el código, ejecuta cada paso.</p>
+    </div>
+    <div class="role-card" style="border-color:var(--teal); background:var(--teal-soft);">
+      <span class="role-badge" style="background:var(--teal); color:#fff;">Copiloto</span>
+      <p style="font-size:13.5px;">Lee el paso, verifica el resultado, revisa el circuito antes de energizar.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 5 AGENDA -->
+<div class="slide" id="slide-5">
+  <div class="eyebrow">Agenda</div>
+  <h2>Cómo se reparte la sesión</h2>
+  <div class="three-col">
+    <div class="card card-purple"><h3>GPIO a fondo</h3><p style="font-size:12px;">Voltaje, corriente, numeración, pinout completo</p></div>
+    <div class="card card-warn"><h3>Evolución RPi3→RPi5</h3><p style="font-size:12px;">Cómo cambió el controlador de GPIO</p></div>
+    <div class="card card-accent"><h3>La práctica</h3><p style="font-size:12px;">Circuito, código en C, polling vs eventos, reto final</p></div>
+  </div>
+</div>
+
+<!-- ============ BLOQUE TEORÍA: GPIO A FONDO ============ -->
+
+<!-- 6 QUE ES UN GPIO -->
+<div class="slide" id="slide-6">
+  <div class="theory-tag">GPIO a fondo</div>
+  <h2>¿Qué es, exactamente, un pin GPIO?</h2>
+  <p style="margin-bottom:10px;"><strong>GPIO</strong> (General Purpose Input/Output) es un pin cuyo comportamiento NO está fijo de fábrica — el software decide, en tiempo de ejecución, si es entrada o salida, y qué valor tiene.</p>
+  <div class="two-col">
+    <div class="card card-accent">
+      <h3>Como salida</h3>
+      <p style="font-size:13px;">El pin fuerza un voltaje (0V o 3.3V) que otro circuito puede leer — así encendemos un LED.</p>
+    </div>
+    <div class="card card-teal">
+      <h3>Como entrada</h3>
+      <p style="font-size:13px;">El pin mide el voltaje que otro circuito le está aplicando — así leemos un botón.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 7 NUMERACION -->
+<div class="slide" id="slide-7">
+  <div class="theory-tag">GPIO a fondo</div>
+  <h2>Numeración: BCM vs física — la confusión más común</h2>
+  <p style="margin-bottom:10px;">El mismo pin tiene <strong>dos números distintos</strong> según cómo lo nombres — y mezclarlos es la causa #1 de "por qué no enciende el LED si sí lo conecté".</p>
+  <table style="margin-bottom:10px;">
+    <thead><tr><th>Sistema</th><th>Qué numera</th><th>Ejemplo (mismo pin físico)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Física / BOARD</strong></td><td>La posición del pin en el header de 40, de izquierda a derecha, de arriba a abajo</td><td>Pin físico 11</td></tr>
+      <tr><td><strong>BCM</strong></td><td>El número real del pin en el chip Broadcom — el que usa libgpiod</td><td>GPIO 17</td></tr>
+    </tbody>
+  </table>
+  <div class="card card-warn">
+    <p style="font-size:13px;">Nuestra tabla de conexión (sección 5 del documento) usa <strong>BCM</strong> — es lo que <code>libgpiod</code> espera. Si consultan un diagrama en internet que use numeración física, van a conectar el pin equivocado.</p>
+  </div>
+</div>
+
+<!-- 8 VOLTAJE -->
+<div class="slide" id="slide-8">
+  <div class="theory-tag">GPIO a fondo</div>
+  <h2>Niveles eléctricos: la regla de oro</h2>
+  <div class="warning-box">
+    <p style="font-size:15px; font-weight:700; color:var(--red); margin-bottom:6px;">GPIO es 3.3V — nunca 5V.</p>
+    <p style="font-size:13.5px;">A diferencia de un Arduino clásico (5V), los pines de la Raspberry Pi <strong>NO son tolerantes a 5V</strong>. Conectar una señal de 5V a un pin GPIO puede dañar permanentemente el chip.</p>
+  </div>
+  <div class="card" style="margin-top:12px; background:var(--surface2);">
+    <p style="font-size:12.5px;">0V = nivel lógico 0. ~3.3V = nivel lógico 1. Si en el futuro conectan un sensor de 5V, necesitarán un divisor de voltaje o un level shifter — nunca la señal directa.</p>
+  </div>
+</div>
+
+<!-- 9 CORRIENTE -->
+<div class="slide" id="slide-9">
+  <div class="theory-tag">GPIO a fondo</div>
+  <h2>Corriente máxima — por qué la resistencia es obligatoria</h2>
+  <div class="two-col">
+    <div class="card card-red">
+      <h3>Por pin</h3>
+      <p style="font-size:20px; font-weight:800; color:var(--red);">16 mA máx.</p>
+      <p style="font-size:12px;">Límite absoluto de un solo pin.</p>
+    </div>
+    <div class="card card-warn">
+      <h3>Total combinado</h3>
+      <p style="font-size:20px; font-weight:800; color:var(--warn);">~50 mA máx.</p>
+      <p style="font-size:12px;">Sumando todos los pines GPIO activos a la vez.</p>
+    </div>
+  </div>
+  <div class="card card-accent" style="margin-top:12px;">
+    <p style="font-size:13px;">Un LED sin resistencia puede pedir 20-30 mA — por encima del límite seguro. La resistencia de 220Ω que pusieron en el circuito no es "buena práctica opcional", es lo que evita dañar el pin.</p>
+  </div>
+</div>
+
+<!-- 10 PULL UP DOWN -->
+<div class="slide" id="slide-10">
+  <div class="theory-tag">GPIO a fondo</div>
+  <h2>Resistencias pull-up / pull-down</h2>
+  <p style="margin-bottom:10px;">Un pin de entrada sin conexión definida "flota" — puede leer 0 o 1 al azar por ruido eléctrico. La resistencia pull fuerza un valor por defecto.</p>
+  <div class="two-col">
+    <div class="card card-teal">
+      <h3>Pull-down (lo que usamos hoy)</h3>
+      <p style="font-size:13px;">Resistencia a GND — el pin lee 0 en reposo, y 1 solo cuando el botón conecta a 3.3V.</p>
+    </div>
+    <div class="card" style="background:var(--surface2);">
+      <h3>Pull-up (alternativa)</h3>
+      <p style="font-size:13px;">Resistencia a 3.3V — el pin lee 1 en reposo, y 0 cuando el botón conecta a GND.</p>
+    </div>
+  </div>
+  <div class="card card-warn" style="margin-top:10px;">
+    <p style="font-size:12.5px;">La Raspberry Pi también tiene resistencias pull internas, activables por software (sin componente físico) — hoy las armamos externas y visibles a propósito, para que el circuito completo quede claro.</p>
+  </div>
+</div>
+
+<!-- 11 FUNCIONES ALTERNAS -->
+<div class="slide" id="slide-11">
+  <div class="theory-tag">GPIO a fondo</div>
+  <h2>Funciones alternas — el mismo pin, distintos trabajos</h2>
+  <p style="margin-bottom:10px;">Cada pin puede configurarse en uno de varios modos (ALT0 a ALT5) además de GPIO genérico — el mismo pin físico puede hablar I2C, SPI o UART según cómo se configure.</p>
+  <div class="card card-purple">
+    <p style="font-size:13.5px;">Esto es exactamente lo que usaremos en la <strong>Práctica 3</strong>: los mismos pines de hoy, reconfigurados por software para hablar el protocolo I2C o SPI en vez de encender/apagar directo.</p>
+  </div>
+</div>
+
+<!-- 11B PINOUT COMPLETO 1 -->
+<div class="slide" id="slide-12">
+  <div class="theory-tag">GPIO a fondo</div>
+  <h2>El pinout completo — header de 40 pines <span class="part-tag">1/2</span></h2>
+  <table class="pin-table">
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-power">3.3V</span></td><td><span class="pin-num" style="background:#b91c1c;">1</span></td>
+      <td><span class="pin-num" style="background:#b91c1c;">2</span></td><td><span class="pin-label pf-power">5V</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-i2c">GPIO2 · SDA1</span></td><td><span class="pin-num" style="background:#6d28d9;">3</span></td>
+      <td><span class="pin-num" style="background:#b91c1c;">4</span></td><td><span class="pin-label pf-power">5V</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-i2c">GPIO3 · SCL1</span></td><td><span class="pin-num" style="background:#6d28d9;">5</span></td>
+      <td><span class="pin-num" style="background:#55606e;">6</span></td><td><span class="pin-label pf-gnd">GND</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-gpio">GPIO4 · GPCLK0</span></td><td><span class="pin-num" style="background:#101828;">7</span></td>
+      <td><span class="pin-num" style="background:#1d4ed8;">8</span></td><td><span class="pin-label pf-uart">GPIO14 · TXD0</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-gnd">GND</span></td><td><span class="pin-num" style="background:#55606e;">9</span></td>
+      <td><span class="pin-num" style="background:#1d4ed8;">10</span></td><td><span class="pin-label pf-uart">GPIO15 · RXD0</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-used">GPIO17 ← hoy</span></td><td><span class="pin-num" style="background:#9a3412;">11</span></td>
+      <td><span class="pin-num" style="background:#be185d;">12</span></td><td><span class="pin-label pf-pwm">GPIO18 · PWM0</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-used">GPIO27 ← hoy</span></td><td><span class="pin-num" style="background:#9a3412;">13</span></td>
+      <td><span class="pin-num" style="background:#55606e;">14</span></td><td><span class="pin-label pf-gnd">GND</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-used">GPIO22 ← hoy</span></td><td><span class="pin-num" style="background:#9a3412;">15</span></td>
+      <td><span class="pin-num" style="background:#9a3412;">16</span></td><td><span class="pin-label pf-used">GPIO23 ← hoy</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-power">3.3V</span></td><td><span class="pin-num" style="background:#b91c1c;">17</span></td>
+      <td><span class="pin-num" style="background:#101828;">18</span></td><td><span class="pin-label pf-gpio">GPIO24</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-spi">GPIO10 · MOSI</span></td><td><span class="pin-num" style="background:#0b7d71;">19</span></td>
+      <td><span class="pin-num" style="background:#55606e;">20</span></td><td><span class="pin-label pf-gnd">GND</span></td>
+    </tr>
+  </table>
+  <p style="margin-top:8px; font-size:10.5px; color:var(--muted); font-style:italic;">Numeración física (izq. impares, der. pares) — así se ve el header visto desde arriba, con la muesca hacia la esquina de los pines 1-2.</p>
+</div>
+
+<!-- 11C PINOUT COMPLETO 2 -->
+<div class="slide" id="slide-13">
+  <div class="theory-tag">GPIO a fondo</div>
+  <h2>El pinout completo — header de 40 pines <span class="part-tag">2/2</span></h2>
+  <table class="pin-table">
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-spi">GPIO9 · MISO</span></td><td><span class="pin-num" style="background:#0b7d71;">21</span></td>
+      <td><span class="pin-num" style="background:#101828;">22</span></td><td><span class="pin-label pf-gpio">GPIO25</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-spi">GPIO11 · SCLK</span></td><td><span class="pin-num" style="background:#0b7d71;">23</span></td>
+      <td><span class="pin-num" style="background:#0b7d71;">24</span></td><td><span class="pin-label pf-spi">GPIO8 · CE0</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-gnd">GND</span></td><td><span class="pin-num" style="background:#55606e;">25</span></td>
+      <td><span class="pin-num" style="background:#0b7d71;">26</span></td><td><span class="pin-label pf-spi">GPIO7 · CE1</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-resv">ID_SD (reservado)</span></td><td><span class="pin-num" style="background:#9aa4b2;">27</span></td>
+      <td><span class="pin-num" style="background:#9aa4b2;">28</span></td><td><span class="pin-label pf-resv">ID_SC (reservado)</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-used">GPIO5 ← hoy</span></td><td><span class="pin-num" style="background:#9a3412;">29</span></td>
+      <td><span class="pin-num" style="background:#55606e;">30</span></td><td><span class="pin-label pf-gnd">GND</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-used">GPIO6 ← hoy</span></td><td><span class="pin-num" style="background:#9a3412;">31</span></td>
+      <td><span class="pin-num" style="background:#be185d;">32</span></td><td><span class="pin-label pf-pwm">GPIO12 · PWM0</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-pwm">GPIO13 · PWM1</span></td><td><span class="pin-num" style="background:#be185d;">33</span></td>
+      <td><span class="pin-num" style="background:#55606e;">34</span></td><td><span class="pin-label pf-gnd">GND</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-pwm">GPIO19 · PWM1</span></td><td><span class="pin-num" style="background:#be185d;">35</span></td>
+      <td><span class="pin-num" style="background:#101828;">36</span></td><td><span class="pin-label pf-gpio">GPIO16</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-gpio">GPIO26</span></td><td><span class="pin-num" style="background:#101828;">37</span></td>
+      <td><span class="pin-num" style="background:#101828;">38</span></td><td><span class="pin-label pf-gpio">GPIO20</span></td>
+    </tr>
+    <tr class="pin-row">
+      <td style="text-align:right;"><span class="pin-label pf-gnd">GND</span></td><td><span class="pin-num" style="background:#55606e;">39</span></td>
+      <td><span class="pin-num" style="background:#101828;">40</span></td><td><span class="pin-label pf-gpio">GPIO21</span></td>
+    </tr>
+  </table>
+  <p style="margin-top:8px; font-size:10.5px; color:var(--muted); font-style:italic;">Naranja = los 6 pines que usamos hoy. Solo 26 de los 28 GPIO son de uso libre — GPIO0/GPIO1 (pines 27-28) están reservados para identificación de HATs.</p>
+</div>
+
+<!-- ============ BLOQUE: EVOLUCION RPi3-RPi5 ============ -->
+
+<!-- 12 TRANSICION -->
+<div class="slide" id="slide-14">
+  <div class="eyebrow warn">Evolución del hardware</div>
+  <h2>¿El GPIO es igual en toda Raspberry Pi?</h2>
+  <p style="max-width:760px;">En el laboratorio todos trabajan con RPi3 o RPi4 — pero vale la pena saber que la arquitectura del GPIO cambió en la RPi5, por si algún día usan una o encuentran código/tutoriales que ya no aplican igual.</p>
+</div>
+
+<!-- 13 RPI3/4 DIAGRAMA -->
+<div class="slide" id="slide-15">
+  <div class="depth-tag">RPi3 y RPi4</div>
+  <h2>GPIO integrado directo en el SoC</h2>
+  <div class="two-col">
+    <div class="icon-box">
+      <svg viewBox="0 0 300 220" width="260">
+        <rect x="30" y="20" width="240" height="160" rx="10" fill="#eaf0ff" stroke="#1d4ed8" stroke-width="2.5"/>
+        <text x="150" y="42" text-anchor="middle" font-family="JetBrains Mono" font-size="12" font-weight="700" fill="#1d4ed8">SoC (BCM2837 / BCM2711)</text>
+        <rect x="45" y="55" width="70" height="40" rx="4" fill="#1d4ed8"/>
+        <text x="80" y="79" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#fff">CPU</text>
+        <rect x="125" y="55" width="70" height="40" rx="4" fill="#6d28d9"/>
+        <text x="160" y="79" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#fff">GPU</text>
+        <rect x="205" y="55" width="50" height="40" rx="4" fill="#0b7d71"/>
+        <text x="230" y="73" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#fff">USB/</text>
+        <text x="230" y="84" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#fff">ETH</text>
+        <rect x="70" y="110" width="160" height="45" rx="4" fill="#9a3412"/>
+        <text x="150" y="130" text-anchor="middle" font-family="JetBrains Mono" font-size="11" font-weight="700" fill="#fff">GPIO</text>
+        <text x="150" y="144" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="#fdf0e6">memory-mapped, dentro del SoC</text>
+        <line x1="150" y1="180" x2="150" y2="205" stroke="#55606e" stroke-width="2"/>
+        <text x="150" y="216" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#55606e">Header de 40 pines</text>
+      </svg>
+    </div>
+    <div class="card card-warn">
+      <p style="font-size:13.5px;">En toda Raspberry Pi <strong>antes de la 5</strong>, el GPIO conecta directo al procesador principal — es un periférico memory-mapped más, dentro del mismo chip que la CPU. Exactamente el mecanismo de memory-mapped I/O que ya vimos en la clase de mapa de memoria.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 14 RPI5 DIAGRAMA -->
+<div class="slide" id="slide-16">
+  <div class="depth-tag">RPi5</div>
+  <h2>GPIO se muda a un chip aparte: RP1</h2>
+  <div class="two-col">
+    <div class="icon-box">
+      <svg viewBox="0 0 320 220" width="280">
+        <rect x="10" y="60" width="120" height="100" rx="10" fill="#eaf0ff" stroke="#1d4ed8" stroke-width="2.5"/>
+        <text x="70" y="80" text-anchor="middle" font-family="JetBrains Mono" font-size="10" font-weight="700" fill="#1d4ed8">SoC</text>
+        <text x="70" y="93" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#1d4ed8">BCM2712</text>
+        <rect x="25" y="105" width="90" height="40" rx="4" fill="#1d4ed8"/>
+        <text x="70" y="129" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#fff">CPU + GPU</text>
+        <line x1="130" y1="110" x2="185" y2="110" stroke="#55606e" stroke-width="2.5"/>
+        <text x="157" y="102" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="#55606e">PCIe 2.0</text>
+        <rect x="185" y="60" width="125" height="100" rx="10" fill="#fdf0e6" stroke="#9a3412" stroke-width="2.5"/>
+        <text x="247" y="78" text-anchor="middle" font-family="JetBrains Mono" font-size="11" font-weight="700" fill="#9a3412">RP1</text>
+        <rect x="197" y="88" width="103" height="26" rx="3" fill="#9a3412"/>
+        <text x="247" y="105" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#fff">GPIO</text>
+        <rect x="197" y="120" width="103" height="26" rx="3" fill="#c2510e"/>
+        <text x="247" y="137" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="#fff">USB / Ethernet</text>
+        <line x1="247" y1="160" x2="247" y2="185" stroke="#55606e" stroke-width="2"/>
+        <text x="247" y="197" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#55606e">Header de 40 pines</text>
+      </svg>
+    </div>
+    <div class="card card-red">
+      <p style="font-size:13.5px;">La RPi5 introduce <strong>RP1</strong>, un chip de E/S separado, diseñado por la propia Raspberry Pi, conectado al BCM2712 por un enlace PCIe de 16 Gb/s. GPIO, USB, Ethernet y cámara/pantalla ya no viven en el procesador principal — viven en RP1.</p>
+    </div>
+  </div>
+</div>
+
+<!-- 15 CONSECUENCIA -->
+<div class="slide" id="slide-17">
+  <div class="eyebrow warn">Por qué esto nos importa hoy</div>
+  <h2>Por eso usamos libgpiod desde el día 1</h2>
+  <div class="card card-red" style="margin-bottom:10px;">
+    <p style="font-size:13.5px;">Librerías viejas como <code>RPi.GPIO</code> o <code>pigpio</code> acceden directo a los registros del SoC por memoria — funcionan en RPi3/4, pero <strong>se rompen en RPi5</strong>, porque ahí el GPIO ya no está en el SoC.</p>
+  </div>
+  <div class="card card-teal">
+    <p style="font-size:13.5px;"><code>libgpiod</code> habla con el kernel a través del dispositivo <code>/dev/gpiochipN</code> — el kernel es quien sabe si debe ir al SoC o a RP1. El mismo código en C que escribimos hoy funciona igual en una RPi4 o en una RPi5, sin cambiar una línea.</p>
+  </div>
+</div>
+
+<!-- ============ PRACTICA ============ -->
+
+<!-- 16 DIAGRAMA DE CONEXION -->
+<div class="slide" id="slide-18">
+  <div class="eyebrow">Diagrama de conexión</div>
+  <h2>Numeración BCM — la que usa libgpiod</h2>
+  <table>
+    <thead><tr><th>Componente</th><th>GPIO (BCM)</th><th>Conexión</th></tr></thead>
+    <tbody>
+      <tr><td>LED 1</td><td><code>17</code></td><td>GPIO17 → R 220Ω → LED → GND</td></tr>
+      <tr><td>LED 2</td><td><code>27</code></td><td>GPIO27 → R 220Ω → LED → GND</td></tr>
+      <tr><td>LED 3</td><td><code>22</code></td><td>GPIO22 → R 220Ω → LED → GND</td></tr>
+      <tr><td>LED 4</td><td><code>23</code></td><td>GPIO23 → R 220Ω → LED → GND</td></tr>
+      <tr><td>Botón 1</td><td><code>5</code></td><td>3.3V → botón → GPIO5 → R 10kΩ → GND</td></tr>
+      <tr><td>Botón 2</td><td><code>6</code></td><td>3.3V → botón → GPIO6 → R 10kΩ → GND</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 17 PARTE A -->
+<div class="slide" id="slide-19">
+  <div class="eyebrow">Parte A · Armado del circuito</div>
+  <h2>Antes de energizar</h2>
+  <div class="step-row"><div class="stepnum">1</div><div class="step-text">Insertar los 4 LEDs con su resistencia de 220Ω en serie.</div></div>
+  <div class="step-row"><div class="stepnum">2</div><div class="step-text">Cátodos de los LEDs → fila de GND del protoboard → GND físico de la Pi.</div></div>
+  <div class="step-row"><div class="stepnum">3</div><div class="step-text">Cada ánodo (vía su resistencia) al GPIO correspondiente.</div></div>
+  <div class="step-row"><div class="stepnum">4</div><div class="step-text">Armar los 2 botones con su resistencia pull-down.</div></div>
+  <div class="step-row"><div class="stepnum">5</div><div class="step-text"><b>Revisar visualmente:</b> ningún cable debe puentear 3.3V directo a GND.</div></div>
+</div>
+
+<!-- 18 PARTE B -->
+<div class="slide" id="slide-20">
+  <div class="eyebrow teal">Parte B · Explorando desde la terminal</div>
+  <h2>Sin escribir código todavía</h2>
+  <div class="step-row"><div class="stepnum">1</div><div class="step-text">Listar chips y líneas disponibles.</div></div>
+  <div class="cmd-big" style="margin:8px 0 14px;">gpioinfo</div>
+  <div class="step-row"><div class="stepnum">2</div><div class="step-text">Encender y apagar el LED 1 directo desde la terminal.</div></div>
+  <div class="cmd-big" style="margin:8px 0 14px;">gpioset gpiochip0 17=1
+gpioset gpiochip0 17=0</div>
+  <div class="step-row"><div class="stepnum">3</div><div class="step-text">Leer el botón 1 — presionar y volver a leer.</div></div>
+  <div class="cmd-big" style="margin-top:8px;">gpioget gpiochip0 5</div>
+</div>
+
+<!-- 19 PARTE C CODIGO 1 -->
+<div class="slide" id="slide-21">
+  <div class="eyebrow">Parte C · LEDs desde C <span class="part-tag">1/2</span></div>
+  <h2>leds.c</h2>
+  <div class="cmd-big" style="margin-bottom:10px;">nano leds.c</div>
+  <div class="cmd-code">#include &lt;gpiod.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;unistd.h&gt;
+
+#define CHIP "gpiochip0"
+#define N_LEDS 4
+
+int main(void) {
+    int pines[N_LEDS] = {17, 27, 22, 23};
+    struct gpiod_chip *chip = gpiod_chip_open_by_name(CHIP);
+    struct gpiod_line *lineas[N_LEDS];
+
+    for (int i = 0; i < N_LEDS; i++) {
+        lineas[i] = gpiod_chip_get_line(chip, pines[i]);
+        gpiod_line_request_output(lineas[i], "leds", 0);
+    }</div>
+</div>
+
+<!-- 20 PARTE C CODIGO 2 -->
+<div class="slide" id="slide-22">
+  <div class="eyebrow">Parte C · LEDs desde C <span class="part-tag">2/2</span></div>
+  <h2>leds.c — patrón y compilación</h2>
+  <div class="cmd-code" style="margin-bottom:10px;">    for (int ronda = 0; ronda < 5; ronda++) {
+        for (int i = 0; i < N_LEDS; i++) {
+            gpiod_line_set_value(lineas[i], 1);
+            usleep(150000);
+            gpiod_line_set_value(lineas[i], 0);
+        }
+    }
+    for (int i = 0; i < N_LEDS; i++) gpiod_line_release(lineas[i]);
+    gpiod_chip_close(chip);
+    return 0;
+}</div>
+  <div class="cmd-big">gcc leds.c -o leds -lgpiod
+./leds</div>
+</div>
+
+<!-- 21 PARTE D CODIGO -->
+<div class="slide" id="slide-23">
+  <div class="eyebrow warn">Parte D · Botón por polling</div>
+  <h2>boton_polling.c</h2>
+  <div class="cmd-code">#include &lt;gpiod.h&gt;
+#include &lt;stdio.h&gt;
+
+int main(void) {
+    struct gpiod_chip *chip = gpiod_chip_open_by_name("gpiochip0");
+    struct gpiod_line *boton = gpiod_chip_get_line(chip, 5);
+    struct gpiod_line *led = gpiod_chip_get_line(chip, 17);
+
+    gpiod_line_request_input(boton, "boton_polling");
+    gpiod_line_request_output(led, "boton_polling", 0);
+
+    while (1) {
+        int estado = gpiod_line_get_value(boton);
+        gpiod_line_set_value(led, estado);
+    }
+}</div>
+</div>
+
+<!-- 22 PARTE D COMPILAR -->
+<div class="slide" id="slide-24">
+  <div class="eyebrow warn">Parte D · Verificar el costo</div>
+  <h2>Compilar, ejecutar, y revisar CPU</h2>
+  <div class="cmd-big" style="margin-bottom:12px;">gcc boton_polling.c -o boton_polling -lgpiod
+./boton_polling</div>
+  <div class="card card-red">
+    <p style="font-size:13.5px;">En otra sesión SSH, corran <code>top</code> y anoten el % de CPU que consume <code>boton_polling</code> — es la versión física de la Ronda 2 de "Guardia técnica".</p>
+  </div>
+</div>
+
+<!-- 23 PARTE E -->
+<div class="slide" id="slide-25">
+  <div class="eyebrow teal">Parte E · El mismo botón, por eventos</div>
+  <h2>gpiomon</h2>
+  <div class="cmd-big" style="margin-bottom:12px;">gpiomon gpiochip0 5</div>
+  <div class="card card-teal">
+    <p style="font-size:13.5px;">Presionen y suelten el botón varias veces — <code>gpiomon</code> solo imprime cuando hay un cambio real. Comparen en <code>top</code>: prácticamente 0% de CPU mientras espera, contra el bucle activo de la Parte D.</p>
+  </div>
+</div>
+
+<!-- 24 PARTE F -->
+<div class="slide" id="slide-26">
+  <div class="eyebrow red">Parte F · Reto final — sin código de partida</div>
+  <h2>Semáforo peatonal</h2>
+  <p style="margin-bottom:8px; font-size:13px;">Aquí no hay código para copiar — solo reglas. Diseñen e implementen <code>semaforo.c</code> desde cero con lo que ya saben.</p>
+  <ul class="styled" style="max-width:820px;">
+    <li>3 LEDs simulan un semáforo vehicular (rojo=17, amarillo=27, verde=22) con ciclo automático: verde 5s → amarillo 2s → rojo 5s → repite.</li>
+    <li>El botón 1 (GPIO5) es la petición de cruce peatonal: al presionarlo, el semáforo debe terminar su fase actual de forma segura y quedarse en rojo 8s antes de reanudar el ciclo.</li>
+    <li>El LED 4 (GPIO23) parpadea mientras el semáforo esté en rojo por petición peatonal — indicador de "cruce seguro".</li>
+  </ul>
+</div>
+
+<!-- 24B PARTE F DECISION -->
+<div class="slide" id="slide-27">
+  <div class="eyebrow red">Parte F · Decisión de diseño</div>
+  <h2>Ustedes deciden: ¿polling o evento?</h2>
+  <div class="card card-warn">
+    <p style="font-size:13.5px;">No se les dice cómo leer el botón — decidan si usan <code>gpiod_line_get_value()</code> en bucle o un mecanismo de evento, y <strong>justifiquen su elección con un comentario en el código</strong>. Piensen: ¿el semáforo necesita hacer otra cosa mientras espera al peatón?</p>
+  </div>
+  <div class="card card-accent" style="margin-top:12px;">
+    <p style="font-size:13px;"><strong>Entregable:</strong> semaforo.c compilando y funcionando en su Raspberry Pi. Sin plantilla — el diagrama de conexión (sección 5) y las reglas de arriba son todo lo que reciben.</p>
+  </div>
+</div>
+
+<!-- 25 PARTE G -->
+<div class="slide" id="slide-28">
+  <div class="eyebrow">Parte G · Commit con Git</div>
+  <h2>Mismo repositorio de la Práctica 1</h2>
+  <div class="cmd-big">git add leds.c boton_polling.c semaforo.c
+git commit -m "Practica 2: GPIO"
+git log --oneline</div>
+</div>
+
+<!-- 26 CHECKLIST -->
+<div class="slide" id="slide-29">
+  <div class="eyebrow warn">Cierre</div>
+  <h2>Checklist de salida</h2>
+  <div class="checklist-i">
+    <div class="check-item"><div class="check-box">✓</div><div class="check-text">Circuito armado y verificado antes de energizar</div></div>
+    <div class="check-item"><div class="check-box">✓</div><div class="check-text">leds.c compila y el patrón se ve en las 4 salidas</div></div>
+    <div class="check-item"><div class="check-box">✓</div><div class="check-text">boton_polling.c funciona; anotaron su % de CPU en top</div></div>
+    <div class="check-item"><div class="check-box">✓</div><div class="check-text">Compararon gpiomon contra el polling</div></div>
+    <div class="check-item"><div class="check-box">✓</div><div class="check-text">semaforo.c funciona: ciclo automático + petición peatonal + indicador de cruce seguro</div></div>
+    <div class="check-item"><div class="check-box">✓</div><div class="check-text">git log --oneline muestra el commit de hoy</div></div>
+  </div>
+</div>
+
+<!-- 27 TROUBLESHOOTING -->
+<div class="slide" id="slide-30">
+  <div class="eyebrow red">¿Algo no funciona?</div>
+  <h2>Problemas más comunes</h2>
+  <table>
+    <thead><tr><th>Problema</th><th>Solución</th></tr></thead>
+    <tbody>
+      <tr><td>undefined reference to gpiod_...</td><td>Falta -lgpiod AL FINAL del comando gcc.</td></tr>
+      <tr><td>chip_open_by_name devuelve NULL</td><td>Verificar nombre con gpioinfo (RPi4: gpiochip0; RPi5: gpiochip4).</td></tr>
+      <tr><td>El LED no enciende</td><td>Revisar polaridad y que la resistencia esté en serie.</td></tr>
+      <tr><td>El botón siempre lee el mismo valor</td><td>Revisar que el pull-down esté conectado a GND, no flotando.</td></tr>
+      <tr><td>Permiso denegado en gpioset</td><td>sudo usermod -aG gpio $USER (cerrar sesión y volver a entrar).</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- 28 PUENTE -->
+<div class="slide" id="slide-31">
+  <div class="eyebrow">Siguiente práctica</div>
+  <h2>P03 — I2C/SPI</h2>
+  <div class="card card-accent">
+    <p style="font-size:14px;">Los mismos pines de hoy, ahora en modo función alterna, hablando un protocolo de bus — necesario porque la Raspberry Pi no tiene ADC nativo.</p>
+  </div>
+</div>
+
+</div>
+<div class="key-hint"><kbd>←</kbd><kbd>→</kbd> navegar &nbsp;|&nbsp; <kbd>F</kbd> pantalla completa</div>
+<script>
+  let current = 1;
+  const total = 31;
+  function changeSlide(dir) {
+    document.getElementById('slide-' + current).classList.remove('active');
+    current = Math.max(1, Math.min(total, current + dir));
+    document.getElementById('slide-' + current).classList.add('active');
+    document.getElementById('counter').textContent = current + ' / ' + total;
+    document.getElementById('prevBtn').disabled = current === 1;
+    document.getElementById('nextBtn').disabled = current === total;
+    document.getElementById('progress').style.width = ((current / total) * 100) + '%';
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') changeSlide(1);
+    if (e.key === 'ArrowLeft') changeSlide(-1);
+    if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+  document.getElementById('progress').style.width = ((1/total)*100) + '%';
+</script>
+</body>
+</html>
