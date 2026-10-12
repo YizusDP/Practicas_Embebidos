@@ -390,10 +390,39 @@ En esta parte, se automatizó la descarga de los módulos desarrollados mediante
 	\label{fig:c17}
 \end{figure}
 
-
 \section{Resultados y Análisis}
 
-Contenido pendiente: Presentar los resultados obtenidos de cada parte del desarrollo.
+A partir de las pruebas experimentales documentadas en las Figuras~\ref{fig:c1_2} a \ref{fig:c17}, se analizan los resultados fundamentales organizados según los componentes evaluados:
+
+\subsection{Verificación del Entorno y Compilación de Módulos}
+Como se observa en la Figura~\ref{fig:c1_2}, el sistema opera sobre la arquitectura \texttt{aarch64} con el kernel \texttt{6.18.39+rpt-rpi-v8}. La validación mediante \texttt{readlink} (Figura~\ref{fig:c2_2}) garantizó la concordancia entre las fuentes/headers instalados en \texttt{/usr/src/linux-headers-6.18.39+rpt-rpi-v8} y el entorno en ejecución. En la Figura~\ref{fig:c3_2}, la consulta mediante \texttt{modinfo} sobre el módulo \texttt{hola.ko} confirmó un \texttt{vermagic} idéntico al del kernel en ejecución, lo que previno fallos de rechazo de símbolos al ejecutar \texttt{insmod}.
+
+\subsection{Dinámica de Carga, Parámetros y Sysfs}
+La carga del módulo \texttt{hola.ko} (Figura~\ref{fig:c4_2}) demostró que las rutinas de kernel no aparecen registradas en el árbol de procesos tradicionales de espacio de usuario (\texttt{ps aux}), sino que se integran en la tabla interna de módulos inspeccionable mediante \texttt{lsmod} y \texttt{/proc/modules}.
+
+En la prueba del módulo \texttt{parametros.ko} (Figuras~\ref{fig:c5_2} y \ref{fig:c6_2}), se constató la reconfiguración dinámica a través del sistema de archivos virtual \texttt{sysfs} ubicado en \texttt{/sys/module/parametros/parameters/}. Al intentar ingresar el argumento fuera de límites \texttt{veces=9}, la función de validación del módulo rechazó la inserción retornando el código de error \texttt{1} (\texttt{Invalid parameters}), demostrando la robustez requerida en el espacio privilegiado para evitar corrupción de memoria.
+
+\subsection{Driver de Caracteres Virtual y Transferencia Segura}
+El módulo \texttt{p6buf.ko} creó dinámicamente el nodo \texttt{/dev/p6buf} con un número menor asignado por la interfaz \texttt{miscdevice} (Figura~\ref{fig:c8_2}). Las pruebas con comandos \texttt{echo} y \texttt{cat} evidenciaron el correcto intercambio de bytes entre espacio de usuario y kernel mediado por \texttt{copy\_from\_user} y \texttt{copy\_to\_user}. Ante la inyección de una cadena superior a la capacidad reservada (256 bytes), el driver respondió adecuadamente devolviendo el error \texttt{No space left on device} (código de salida \texttt{1}).
+
+El análisis de \texttt{cliente.c} con \texttt{strace} (Figura~\ref{fig:c9_2}) confirmó que las operaciones de alto nivel sobre \texttt{/dev/p6buf} se traducen directamente en las syscalls \texttt{openat}, \texttt{write}, \texttt{lseek}, \texttt{read} y \texttt{close}. De forma análoga, el análisis sobre \texttt{demo\_ipc.c} (Figura~\ref{fig:c10_2}) expuso las llamadas \texttt{pipe2} y \texttt{clone} involucradas en la comunicación entre procesos.
+
+\subsection{Cuantificación del Costo Temporal de las Syscalls}
+Las mediciones realizadas con el programa \texttt{tiempo.c} (Figura~\ref{fig:c11_2}) permitieron establecer la jerarquía de latencias operativas asociadas al cambio de modo de ejecución:
+
+\begin{itemize}
+    \item \textbf{Acceso a memoria de usuario}: $\approx 1.1\text{ ns}$ por operación (acceso a caché/RAM en espacio no privilegiado).
+    \item \textbf{Llamada al sistema (\texttt{SYS\_getppid})}: $\approx 443.5\text{ ns}$ a $453.9\text{ ns}$ (sobrecarga por cambio de contexto y modo privilegiado).
+    \item \textbf{Lectura en dispositivo virtual (\texttt{pread} sobre \texttt{/dev/p6buf})}: $\approx 590.9\text{ ns}$ a $608.8\text{ ns}$ (cambio de modo más la ejecución de la función \texttt{.read} en el driver).
+    \item \textbf{Transferencia de hardware físico (SPI, 3 bytes)}: $\approx 35,528\text{ ns}$ a $35,709\text{ ns}$ ($\approx 35.5\text{ ms}$, dominado por la velocidad física de reloj del bus serial).
+\end{itemize}
+
+Estos valores comprueban experimentalmente que cruzar la frontera hacia el kernel impone un costo aproximado 400 veces mayor que una lectura directa de memoria, y que el acceso a periféricos físicos impone una sobrecarga adicional de dos órdenes de magnitud.
+
+\subsection{Identificación de Drivers Reales y Limpieza del Sistema}
+Al analizar \texttt{sensor\_combinado} con \texttt{strace} (Figuras~\ref{fig:c12_2} y \ref{fig:c13_2}), se evidenció que las abstracciones de prácticas anteriores acceden directamente a nodos de dispositivo como \texttt{/dev/i2c-1}, \texttt{/dev/spidev0.0} y \texttt{/dev/gpiochip0}, respaldados por módulos cargados en el kernel como \texttt{i2c\_dev}, \texttt{i2c\_bcm2835} y \texttt{spidev}.
+
+El desarrollo del reto final \texttt{p6cnt.ko} (Figura~\ref{fig:c15_2}) demostró la correcta administración de estado interno al contabilizar las aperturas del nodo, procesar exitosamente el comando de reinicio mediante \texttt{echo reset > /dev/p6cnt} y rechazar entradas inválidas con \texttt{Invalid argument}. Finalmente, la ejecución del script de automatización \texttt{descargar.sh} (Figura~\ref{fig:c16_2}) y el registro en Git (Figura~\ref{fig:c17}) confirmaron la descarga ordenada de los controladores y la integridad del sistema operativo.
 
 \section{Conclusiones}
 
@@ -408,7 +437,7 @@ Con esta práctica entendí que un módulo de kernel no es un programa más, sin
 Con \texttt{strace} pude ver cómo cada \texttt{open}, \texttt{read} y \texttt{write} de \texttt{cliente.c} cruza hacia el kernel, y con \texttt{tiempo.c} comprobé que ese cruce tiene un costo medible frente al acceso a memoria de usuario, y que el hardware real, como el SPI, es todavía más lento. Esto explica por qué en sistemas embebidos conviene reducir el número de llamadas al sistema. Además, al rastrear \texttt{sensor\_combinado} confirmé que lo que usé en prácticas anteriores (GPIO, I2C y SPI) siempre pasa por un archivo de \texttt{/dev} y por su driver correspondiente. Finalmente, al desarrollar \texttt{p6cnt} apliqué todo el flujo completo: registrar un dispositivo, contar aperturas, interpretar el comando \texttt{reset}, validar entradas inválidas y descargar el módulo limpiamente. Se cumplieron los objetivos planteados.
 
 \textbf{Dorantes Mejía Emmanuel}. \\
-Conclusión pendiente.
+Esta práctica me permitió entender en la práctica cómo interactúa el espacio de usuario con el espacio de kernel a través de llamadas al sistema y controladores de dispositivos. Comprender la función de \texttt{copy\_from\_user} y \texttt{copy\_to\_user} fue fundamental para ver cómo el kernel protege la memoria del sistema. Además, el análisis de tiempos me demostró que cada cambio de modo hacia el kernel añade una sobrecarga considerable en comparación con el acceso directo a memoria. El desarrollo del reto final \texttt{p6cnt} me ayudó a consolidar todo el flujo de trabajo involucrado en la creación, prueba y descarga de un módulo de kernel de forma segura. Se cumplieron los objetivos planteados.
 
 \textbf{García Olvera Emiliano}. \\
 En esta práctica aprendí que un módulo de kernel es código que corre dentro del propio sistema operativo, no como un programa más, y que debe compilarse con los headers exactos del kernel que se está usando. También vi cómo un driver es el intermediario entre los programas de usuario y lo que hay detrás de un archivo de /dev: es el driver quien decide qué significan read y write, y por eso debe validar con cuidado lo que recibe (por ejemplo, rechazar escrituras mayores al buffer).
