@@ -413,7 +413,7 @@ En esta práctica aprendí que un módulo de kernel es código que corre dentro 
 Con las mediciones comprobé que cada paso de un programa de usuario al kernel tiene un costo, y que hablar con hardware real, como el SPI, es todavía más lento. Esto muestra por qué en sistemas embebidos conviene reducir el número de llamadas al sistema. Finalmente, al crear mi propio módulo p6cnt, pude aplicar todo lo visto: registrar un dispositivo, manejar lecturas y escrituras y limpiarlo correctamente al descargar el módulo.
 
 \textbf{Hernández Alonso Antonio Adonahí}. \\
-Conclusión pendiente.
+Esta práctica reveló cómo funcionan internamente los mecanismos que antes usaba sin entenderlos: cada operación de lectura o escritura ejecuta código del kernel a través de file\_operations, y cruzar al espacio privilegiado tiene un costo medible. Implementar el driver p6buf demostró que las funciones copy\_from\_user y copy\_to\_user son fundamentales para seguridad, ya que el kernel nunca debe confiar en punteros del usuario. Usar strace para analizar programas anteriores confirmó que todos los accesos a hardware pasan por drivers como gpiod, i2c-dev o spidev. Las mediciones cuantificaron lo que antes era solo teoría: memoria de usuario toma nanosegundos, syscalls básicas microsegundos, y operaciones de hardware real milisegundos. El módulo p6cnt integró todo lo aprendido: registro de dispositivo, validación de entrada y limpieza apropiada. Esta separación entre espacio de usuario y kernel explica la robustez de Linux: un error en mi código no puede afectar el sistema completo.
 
 \textbf{Jiménez Reyes Alan Yael}. \\
 Conclusión pendiente.
