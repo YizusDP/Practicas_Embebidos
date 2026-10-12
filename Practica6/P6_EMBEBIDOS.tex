@@ -409,7 +409,8 @@ Conclusión pendiente.
 Conclusión pendiente.
 
 \textbf{García Olvera Emiliano}. \\
-Conclusión pendiente.
+En esta práctica aprendí que un módulo de kernel es código que corre dentro del propio sistema operativo, no como un programa más, y que debe compilarse con los headers exactos del kernel que se está usando. También vi cómo un driver es el intermediario entre los programas de usuario y lo que hay detrás de un archivo de /dev: es el driver quien decide qué significan read y write, y por eso debe validar con cuidado lo que recibe (por ejemplo, rechazar escrituras mayores al buffer).
+Con las mediciones comprobé que cada paso de un programa de usuario al kernel tiene un costo, y que hablar con hardware real, como el SPI, es todavía más lento. Esto muestra por qué en sistemas embebidos conviene reducir el número de llamadas al sistema. Finalmente, al crear mi propio módulo p6cnt, pude aplicar todo lo visto: registrar un dispositivo, manejar lecturas y escrituras y limpiarlo correctamente al descargar el módulo.
 
 \textbf{Hernández Alonso Antonio Adonahí}. \\
 Conclusión pendiente.
