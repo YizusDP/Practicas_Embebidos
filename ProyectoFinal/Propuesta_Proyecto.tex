@@ -1,0 +1,408 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% Configuración para español
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% Paquetes estándar IEEE
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{multirow}
+\usepackage[hidelinks]{hyperref} % hidelinks elimina las cajas de color en los enlaces
+
+% ---------- Configuración de listados de código ----------
+\definecolor{codegray}{rgb}{0.45,0.45,0.45}
+\definecolor{codeblue}{rgb}{0.10,0.10,0.60}
+\lstset{
+	basicstyle=\ttfamily\scriptsize,
+	keywordstyle=\color{codeblue}\bfseries,
+	commentstyle=\color{codegray}\itshape,
+	stringstyle=\color{codegray},
+	numbers=left,
+	numberstyle=\tiny\color{codegray},
+	numbersep=5pt,
+	frame=single,
+	breaklines=true,
+	breakatwhitespace=true,
+	showstringspaces=false,
+	tabsize=2,
+	captionpos=b,
+	literate=%
+	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+	{ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+
+% ---------- Espacio reservado para imágenes faltantes ----------
+\newcommand{\imgph}[2]{%
+	\fbox{\begin{minipage}[c][#2][c]{0.92\columnwidth}
+			\centering\textcolor{codegray}{\footnotesize [Espacio para imagen: #1]}
+	\end{minipage}}%
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+	T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Propuesta de Proyecto Final: \\
+	\large [Nombre del Proyecto] \\
+	Sistemas Embebidos - Avance 1}
+
+\author{
+	\IEEEauthorblockN{Belmont Muñoz Samuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 317318289}
+	\and
+	\IEEEauthorblockN{Domínguez Palacios Jesús Alejandro}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 421066205}
+	\and
+	\IEEEauthorblockN{Dorantes Mejía Emmanuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 313004766}
+	\and
+	\IEEEauthorblockN{García Olvera Emiliano}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 314256009}
+	\and
+	\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320257780}
+	\and
+	\IEEEauthorblockN{Jiménez Reyes Alan Yael}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320026726}
+}
+
+\maketitle
+
+\begin{center}
+	\vspace{-0.3cm}
+	{\small
+		\textbf{Grupo:} 6  | 
+		\textbf{Fecha de entrega:} 19/10/2026  | 
+		\textbf{Avance:} 1 de 4
+	}
+	\vspace{0.2cm}
+\end{center}
+
+\begin{abstract}
+	Este documento presenta la propuesta de diseño para [nombre del proyecto], un sistema embebido desarrollado como proyecto final de la asignatura de Sistemas Embebidos. Se describe el problema a resolver, los usuarios objetivo, el alcance del sistema, los requisitos funcionales y no funcionales con criterios de aceptación numéricos, la arquitectura del sistema mediante diagrama de bloques, la justificación de la plataforma de hardware y software seleccionada, la bitácora de decisiones de diseño, la lista de materiales con análisis de riesgos, y el plan de trabajo con asignación de responsabilidades. El sistema está diseñado para [breve descripción del propósito].
+\end{abstract}
+
+\begin{IEEEkeywords}
+	Sistemas embebidos, Raspberry Pi, [otros keywords del proyecto]
+\end{IEEEkeywords}
+
+\section{Problema, Usuario y Alcance}
+
+\subsection{Descripción del Problema}
+
+[Describir el problema que resuelve el sistema. ¿Qué necesidad o situación motiva este proyecto? ¿Por qué es importante resolverlo?]
+
+\subsection{Usuario Objetivo}
+
+[¿Quién utilizará este sistema? Describir el perfil del usuario, sus necesidades específicas y el contexto de uso.]
+
+\subsection{Alcance del Proyecto}
+
+\subsubsection{Dentro del Alcance}
+
+El sistema incluirá las siguientes funcionalidades:
+
+\begin{itemize}
+	\item {[Funcionalidad 1]}
+	\item {[Funcionalidad 2]}
+	\item {[Funcionalidad 3]}
+	\item {[Funcionalidad 4]}
+	\item {[Funcionalidad 5]}
+\end{itemize}
+
+\subsubsection{Fuera del Alcance}
+
+Las siguientes funcionalidades NO serán implementadas en este proyecto:
+
+\begin{itemize}
+	\item {[Exclusión 1]}
+	\item {[Exclusión 2]}
+	\item {[Exclusión 3]}
+\end{itemize}
+
+\section{Requisitos del Sistema}
+
+Esta sección presenta los requisitos funcionales y no funcionales del sistema, cada uno con su criterio de aceptación numérico medible.
+
+\subsection{Requisitos Funcionales}
+
+\begin{enumerate}
+	\item \textbf{[Nombre del Requisito 1]} \\
+	      Descripción: [Descripción del requisito] \\
+	      \textit{Criterio de aceptación:} [Criterio numérico medible, ej: "El sistema debe detectar eventos en menos de 100ms"]
+
+	\item \textbf{[Nombre del Requisito 2]} \\
+	      Descripción: [Descripción del requisito] \\
+	      \textit{Criterio de aceptación:} [Criterio numérico medible]
+
+	\item \textbf{[Nombre del Requisito 3]} \\
+	      Descripción: [Descripción del requisito] \\
+	      \textit{Criterio de aceptación:} [Criterio numérico medible]
+\end{enumerate}
+
+\subsection{Requisitos No Funcionales}
+
+\begin{enumerate}
+	\item \textbf{[Nombre del Requisito 4]} \\
+	      Descripción: [Descripción del requisito] \\
+	      \textit{Criterio de aceptación:} [Criterio numérico medible, ej: "Consumo de energía menor a 5W en operación continua"]
+
+	\item \textbf{[Nombre del Requisito 5]} \\
+	      Descripción: [Descripción del requisito] \\
+	      \textit{Criterio de aceptación:} [Criterio numérico medible]
+\end{enumerate}
+
+\section{Diagrama de Bloques}
+
+El diagrama debe mostrar claramente: sensores, actuadores, procesadores, buses de comunicación (GPIO, I2C, SPI, UART) y el flujo de datos entre componentes.
+
+\begin{figure}[H]
+	\centering
+	\imgph{Diagrama de bloques del sistema}{6cm}
+	\caption{Arquitectura del sistema con sensores, actuadores, procesadores, buses y flujo de datos.}
+	\label{fig:diagrama_bloques}
+\end{figure}
+
+\textbf{Descripción:} {[Breve descripción textual del diagrama explicando los componentes principales, sus conexiones y el flujo de datos]}
+
+\section{Plataforma y Sistema Operativo}
+
+\subsection{Plataforma de Hardware}
+
+\textbf{Plataforma elegida:} {[Raspberry Pi 4 / STM32 / Ambas]}
+
+\textbf{Justificación:}
+
+\begin{itemize}
+	\item \textbf{Determinismo}: {[Análisis de requisitos de tiempo real y cómo la plataforma los cumple]}
+	\item \textbf{Huella de memoria}: {[Cifras de RAM y almacenamiento necesarios vs disponibles]}
+	\item \textbf{Multitarea}: {[Cantidad de tareas concurrentes y cómo la plataforma las soporta]}
+\end{itemize}
+
+\subsection{Categoría de Sistema Operativo}
+
+\textbf{SO seleccionado:} {[Linux embebido / RTOS / Bare-metal]}
+
+\textbf{Justificación:}
+
+\begin{itemize}
+	\item \textbf{Determinismo}: {[¿Requiere garantías de tiempo real? Cifras de latencia máxima]}
+	\item \textbf{Huella de memoria}: {[Overhead del SO en KB/MB vs memoria disponible]}
+	\item \textbf{Multitarea}: {[Tipo de planificación requerida y soporte del SO]}
+\end{itemize}
+
+\section{Bitácora de Decisiones de Diseño}
+
+Esta sección documenta las decisiones técnicas tomadas durante las clases 7 a 12, aplicadas específicamente a nuestro proyecto. Cada entrada incluye cifras y justificaciones cuantitativas.
+
+\subsection{Clase 7: Kickoff de proyecto + Panorama de SO embebidos}
+
+\textbf{Pregunta:} ¿Qué categoría de SO embebido usarían para su proyecto — bare-metal, RTOS o Linux embebido — y por qué?
+
+\textbf{Respuesta aplicada al proyecto:} \\
+{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+
+\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Fecha:} 09/09/2026
+
+\subsection{Clase 8: Planificación (scheduling)}
+
+\textbf{Pregunta:} ¿Qué tareas tendría su proyecto, y qué prioridad relativa le darían a cada una? ¿Alguna necesita planificación preemptiva sí o sí?
+
+\textbf{Respuesta aplicada al proyecto:} \\
+{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+
+\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Fecha:} 10/09/2026
+
+\subsection{Clase 9: Sincronización}
+
+\textbf{Pregunta:} ¿Qué recurso compartido tendría su proyecto entre dos tareas, y qué mecanismo de sincronización usarían para protegerlo?
+
+\textbf{Respuesta aplicada al proyecto:} \\
+{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+
+\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Fecha:} 17/09/2026
+
+\subsection{Clase 10: Gestión de Memoria en SO embebidos}
+
+\textbf{Pregunta:} ¿Su proyecto se parece más al Caso A (asignaciones frecuentes y predecibles) o al Caso B (una asignación grande y rara)? ¿Qué estrategia de memoria usarían, con qué números?
+
+\textbf{Respuesta aplicada al proyecto:} \\
+{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+
+\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Fecha:} 23/09/2026
+
+\subsection{Clase 11: Comunicación entre Procesos (IPC)}
+
+\textbf{Pregunta:} ¿Su proyecto tendría más de un proceso comunicándose? Si es así, ¿qué mecanismo de IPC usarían y por qué?
+
+\textbf{Respuesta aplicada al proyecto:} \\
+{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+
+\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Fecha:} 24/09/2026
+
+\subsection{Clase 12: Kernel, syscalls y drivers}
+
+\textbf{Pregunta:} ¿Qué tareas de su proyecto tienen una temporización que un proceso de usuario no puede garantizar? Para cada una, ¿usarían una syscall por evento, mmap de registros o un periférico de hardware configurado por su driver?
+
+\textbf{Respuesta aplicada al proyecto:} \\
+{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+
+\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Fecha:} 07/10/2026
+
+\section{Lista de Materiales y Análisis de Riesgos}
+
+\subsection{Bill of Materials (BOM)}
+
+La Tabla \ref{tab:bom} presenta la lista completa de materiales necesarios para el proyecto, con información de disponibilidad confirmada.
+
+\begin{table}[H]
+	\centering
+	\caption{Lista de materiales del proyecto}
+	\label{tab:bom}
+	\small
+	\begin{tabular}{|p{3cm}|c|c|p{2.3cm}|}
+		\hline
+		\textbf{Componente} & \textbf{Cant.} & \textbf{Precio} & \textbf{Disponibilidad} \\
+		\hline
+		Raspberry Pi 4 (4GB) & 1 & \$X & {[Confirmada/ Disponible/ A comprar]} \\
+		\hline
+		{[Sensor 1]} & X & \$X & {[Estado]} \\
+		\hline
+		{[Sensor 2]} & X & \$X & {[Estado]} \\
+		\hline
+		{[Actuador 1]} & X & \$X & {[Estado]} \\
+		\hline
+		{[Componente adicional]} & X & \$X & {[Estado]} \\
+		\hline
+		Cables y conectores & - & \$X & Disponible \\
+		\hline
+		\textbf{Total estimado} & & \textbf{\$XXX} & \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\subsection{Análisis de Riesgos y Mitigación}
+
+La Tabla \ref{tab:riesgos} identifica los principales riesgos del proyecto y las estrategias de mitigación planificadas.
+
+\begin{table}[H]
+	\centering
+	\caption{Riesgos identificados y plan de mitigación}
+	\label{tab:riesgos}
+	\small
+	\begin{tabular}{|p{2.3cm}|p{2.3cm}|p{2.7cm}|}
+		\hline
+		\textbf{Riesgo} & \textbf{Impacto} & \textbf{Mitigación} \\
+		\hline
+		{[Riesgo 1: ej. Retraso en llegada de componentes]} & {[Descripción del impacto]} & {[Plan de mitigación específico]} \\
+		\hline
+		{[Riesgo 2: ej. Falla de comunicación I2C]} & {[Descripción del impacto]} & {[Plan de mitigación específico]} \\
+		\hline
+		{[Riesgo 3: ej. Insuficiente capacidad de procesamiento]} & {[Descripción del impacto]} & {[Plan de mitigación específico]} \\
+		\hline
+		{[Riesgo 4]} & {[Descripción del impacto]} & {[Plan de mitigación específico]} \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\section{Plan de Trabajo}
+
+\subsection{Cronograma de Hitos}
+
+El proyecto se desarrollará en 4 avances principales:
+
+\begin{itemize}
+	\item \textbf{Avance 1 (19/oct/2026)}: Propuesta + diagrama de bloques
+	\item \textbf{Avance 2 (04/nov/2026)}: Avance de al menos 1 módulo funcional
+	\item \textbf{Avance 3 (09/nov/2026)}: Avance de integración completa
+	\item \textbf{Avance 4 (23/nov/2026)}: Demostración final del prototipo + reporte técnico
+\end{itemize}
+
+\subsection{Distribución de Tareas}
+
+La Tabla \ref{tab:tareas} muestra la asignación de responsabilidades por tarea y por avance.
+
+\begin{table}[H]
+	\centering
+	\caption{Distribución de tareas y responsables}
+	\label{tab:tareas}
+	\small
+	\begin{tabular}{|p{1.6cm}|p{3.2cm}|p{2.2cm}|}
+		\hline
+		\textbf{Avance} & \textbf{Tarea} & \textbf{Responsable} \\
+		\hline
+		\multirow{3}{*}{Avance 2} & {[Tarea 1]} & {[Nombre]} \\
+		\cline{2-3}
+		& {[Tarea 2]} & {[Nombre]} \\
+		\cline{2-3}
+		& {[Tarea 3]} & {[Nombre]} \\
+		\hline
+		\multirow{3}{*}{Avance 3} & {[Tarea 1]} & {[Nombre]} \\
+		\cline{2-3}
+		& {[Tarea 2]} & {[Nombre]} \\
+		\cline{2-3}
+		& {[Tarea 3]} & {[Nombre]} \\
+		\hline
+		\multirow{3}{*}{Avance 4} & {[Tarea 1]} & {[Nombre]} \\
+		\cline{2-3}
+		& {[Tarea 2]} & {[Nombre]} \\
+		\cline{2-3}
+		& Integración final & Todos \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\section{Declaración de Uso de Inteligencia Artificial}
+
+Durante el desarrollo de este proyecto se utilizaron las siguientes herramientas de IA:
+
+\begin{itemize}
+	\item \textbf{Claude Code (Anthropic)}: Utilizado para [describir para qué se usó: ej. asistencia en estructura de código, revisión de sintaxis, generación de documentación, etc.]
+	\item \textbf{[Otra herramienta si aplica]}: [Descripción de uso]
+\end{itemize}
+
+Todas las decisiones de diseño, arquitectura y justificaciones técnicas fueron realizadas por el equipo. Las herramientas de IA se utilizaron como asistentes para [redacción/código/documentación], pero el contenido técnico y conceptual es autoría del equipo.
+
+\begin{thebibliography}{00}
+	\bibitem{rpi_docs} Raspberry Pi Foundation. (2024). ``Raspberry Pi Documentation''. Disponible en: https://www.raspberrypi.com/documentation/
+	\bibitem{linux_embedded} Yaghmour, K. et al. (2008). \textit{Building Embedded Linux Systems}, 2nd ed. O'Reilly Media.
+	\bibitem{embedded_systems} Lee, E. A., Seshia, S. A. (2017). \textit{Introduction to Embedded Systems: A Cyber-Physical Systems Approach}, 2nd ed. MIT Press.
+	\bibitem{[referencia_especifica]} [Autor]. ([Año]). ``[Título]''. [Fuente].
+\end{thebibliography}
+
+\vspace{0.5cm}
+
+\noindent
+\textbf{Enlace al repositorio del proyecto:} \\
+\url{https://github.com/[usuario]/[repositorio]}
+
+\end{document}
