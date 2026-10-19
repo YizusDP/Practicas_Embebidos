@@ -1,0 +1,158 @@
+
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{cite,amsmath,amssymb,amsfonts,graphicx,textcomp,xcolor,float,listings,array}
+\definecolor{codegray}{rgb}{0.40,0.40,0.40}
+\definecolor{codeblue}{rgb}{0.10,0.10,0.60}
+\lstset{basicstyle=\ttfamily\scriptsize,keywordstyle=\color{codeblue}\bfseries,commentstyle=\color{codegray}\itshape,numbers=left,numberstyle=\tiny\color{codegray},frame=single,breaklines=true,showstringspaces=false,tabsize=2}
+% Agrega una imagen PNG con el nombre indicado junto a este archivo .tex.
+% La figura aparece automáticamente; mientras no exista, muestra un recuadro.
+\newcommand{\evidencia}[3]{%
+\begin{figure}[!htbp]\centering
+\IfFileExists{#1.png}{\includegraphics[width=\columnwidth]{#1.png}}{%
+\fbox{\begin{minipage}[c][3.0cm][c]{0.90\columnwidth}\centering\footnotesize\textbf{CAPTURA PENDIENTE}\\Archivo: \texttt{#1.png}\\#3\end{minipage}}}%
+\caption{#2}\label{fig:#1}\end{figure}}
+\newcommand{\pendiente}[1]{\textbf{[PENDIENTE: #1]}}
+\begin{document}
+\title{Práctica 7: C embebido\\\large Registros reales, bits y \texttt{volatile} en Raspberry Pi 4}
+\author{
+\IEEEauthorblockN{Belmont Muñoz Samuel}\IEEEauthorblockA{Ingeniería en Computación\\Facultad de Ingeniería\\No. Cuenta: 317318289}
+\and\IEEEauthorblockN{Domínguez Palacios Jesús Alejandro}\IEEEauthorblockA{Ingeniería en Computación\\Facultad de Ingeniería\\No. Cuenta: 421066205}
+\and\IEEEauthorblockN{Dorantes Mejía Emmanuel}\IEEEauthorblockA{Ingeniería en Computación\\Facultad de Ingeniería\\No. Cuenta: 313004766}
+\and\IEEEauthorblockN{García Olvera Emiliano}\IEEEauthorblockA{Ingeniería en Computación\\Facultad de Ingeniería\\No. Cuenta: 314256009}
+\and\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}\IEEEauthorblockA{Ingeniería en Computación\\Facultad de Ingeniería\\No. Cuenta: 320257780}
+\and\IEEEauthorblockN{Jiménez Reyes Alan Yael}\IEEEauthorblockA{Ingeniería en Computación\\Facultad de Ingeniería\\No. Cuenta: 320026726}}
+\maketitle
+\begin{center}\small\textbf{Práctica No.:} 7 \quad|\quad \textbf{Grupo:} 6 \quad|\quad\textbf{Fecha:} 12/10/2026\end{center}
+\begin{abstract}
+Se estudian técnicas de programación en C embebido sobre Raspberry Pi 4: tipos de ancho fijo, promoción de enteros, máscaras de bits, desbordamiento, estructuras para registros mapeados y acceso a GPIO mediante \texttt{/dev/gpiomem}. Además, se analiza el calificador \texttt{volatile}, la lectura de un convertidor MCP3008 por SPI y la compensación de temperatura de un BMP280 por I2C. Finalmente, se integra un panel con cuatro LEDs, dos botones y sensores. Este documento contiene los fundamentos y cálculos previos; los resultados experimentales se completarán con las evidencias del equipo.
+\end{abstract}
+\begin{IEEEkeywords}C embebido, Raspberry Pi 4, GPIO, máscaras, volatile, mmap, MCP3008, BMP280, SPI, I2C\end{IEEEkeywords}
+\section{Objetivos}
+\subsection{Objetivo general}
+Manejar con C los registros reales del controlador GPIO de Raspberry Pi 4 y los bytes de los sensores del circuito de las prácticas anteriores mediante tipos de ancho fijo, operaciones a nivel de bits y \texttt{volatile}.
+\subsection{Objetivos específicos}
+\begin{itemize}
+\item Explicar tamaño de tipos, promoción de enteros, relleno y orden de bytes.
+\item Aplicar máscaras para modificar bits y campos de GPFSEL sin alterar otros pines.
+\item Mapear los registros GPIO con \texttt{mmap}, verificar desplazamientos y manejar LEDs y botones.
+\item Comparar versiones con y sin \texttt{volatile} bajo distintos niveles de optimización.
+\item Interpretar las tramas de MCP3008 y los coeficientes y registros de temperatura del BMP280.
+\item Integrar un panel de LEDs, botones, potenciómetro y temperatura sin \texttt{libgpiod}.
+\end{itemize}
+\section{Introducción}
+En los sistemas embebidos, el programa debe interpretar datos que representan registros físicos y tramas de comunicación. Los tipos \texttt{uint8\_t}, \texttt{uint16\_t} y \texttt{uint32\_t} permiten elegir anchos precisos, mientras que los desplazamientos y máscaras aíslan campos específicos. El controlador GPIO de la Raspberry Pi 4 puede mapearse al espacio de usuario mediante \texttt{/dev/gpiomem} y \texttt{mmap}. Cuando una dirección corresponde a un registro de hardware, \texttt{volatile} indica al compilador que sus accesos son observables y no debe omitirlos ni conservar indefinidamente un valor leído. La práctica también usa protocolos SPI e I2C para obtener señales del potenciómetro y la temperatura del BMP280. En todo momento se preservan los pines asignados a estos buses.
+\section{Materiales y equipo}
+\begin{itemize}
+\item Raspberry Pi 4, Raspberry Pi OS, compilador GCC, GNU Make y Git.
+\item Cuatro LEDs en GPIO17, 27, 22 y 23; dos botones en GPIO5 y 6.
+\item Sensor BMP280 en I2C (GPIO2 y 3; dirección 0x76 o 0x77).
+\item MCP3008 por SPI (GPIO8 a 11) y potenciómetro en canal 0.
+\item Circuito armado de las prácticas 2 y 3, sin cambiar conexiones.
+\end{itemize}
+\section{Desarrollo}
+\subsection{Parte A. Circuito, permisos y Makefile}
+Se verifica arquitectura, versión de GCC, pertenencia a los grupos \texttt{gpio}, \texttt{i2c} y \texttt{spi}, dispositivos \texttt{/dev/gpiomem}, \texttt{/dev/i2c-1} y \texttt{/dev/spidev0.0}, dirección I2C del BMP280 y ausencia de programas previos que utilicen el circuito. El \texttt{Makefile} utiliza \texttt{-std=gnu11}, \texttt{-Wall}, \texttt{-Wextra}, \texttt{-Wconversion}, \texttt{-O0} y \texttt{-g}. La arquitectura esperada \texttt{aarch64} utiliza típicamente \texttt{long} de 8 bytes en Raspberry Pi OS de 64 bits; la confirmación se obtiene ejecutando \texttt{tipos.c}.
+\pendiente{anotar salida de uname -m, groups, i2cdetect y dirección 0x76/0x77; confirmar tamaño real de long.}
+\evidencia{C1}{Revisión del entorno, dispositivos, permisos y dirección del BMP280.}{Terminal con comandos de la Parte A.}
+\evidencia{C2}{Creación del Makefile y compilación de programas.}{Archivo Makefile y salida de make.}
+\subsection{Parte B. Tamaños, promociones y orden de bytes}
+El programa \texttt{tipos.c} compara tamaños de tipos y estructuras normal y compacta. En una Raspberry Pi 4 con ABI AArch64 habitual, \texttt{int} y \texttt{uint32\_t} ocupan 4 bytes, \texttt{long} y los punteros 8 bytes. Para \texttt{uint8\_t a=200,b=100}, la suma se promociona a \texttt{int} y resulta 300; al almacenar en un \texttt{uint8\_t}, se reduce módulo 256 y resulta 44.
+\begin{table}[!htbp]\centering\caption{Predicciones teóricas de la Parte B (verificar experimentalmente)}\scriptsize
+\begin{tabular}{|p{2.15cm}|p{1.35cm}|p{3.45cm}|}\hline
+Prueba & Predicción & Motivo \\ \hline
+\texttt{sizeof(long)} & 8 bytes & ABI AArch64 LP64 habitual. \\ \hline
+\texttt{a+b} como \texttt{int} & 300 & Promoción de enteros. \\ \hline
+Suma en \texttt{uint8\_t} & 44 & $300\bmod256=44$. \\ \hline
+\texttt{\~{}reg == 0xF0} & Falso (0) & \texttt{reg} promociona a \texttt{int}; complemento ocupa ancho de \texttt{int}. \\ \hline
+\texttt{(uint8\_t)\~{}reg == 0xF0} & Verdadero (1) & El molde limita el resultado a 8 bits. \\ \hline
+\texttt{paquete\_normal} & 12 bytes & \texttt{valor} en offset 4, \texttt{crc} en offset 8; padding. \\ \hline
+\texttt{paquete\_compacto} & 6 bytes & \texttt{valor} en offset 1, \texttt{crc} en offset 5. \\ \hline
+\texttt{0x01020304} & 04 03 02 01 & Orden little-endian habitual. \\ \hline
+\end{tabular}\end{table}
+En \texttt{paquete\_normal}, el compilador puede insertar tres bytes antes de \texttt{valor} y tres bytes al final para mantener la alineación del conjunto. Esos bytes de relleno no representan campos y su contenido no debe asumirse. El aviso de compilación de las comparaciones se debe registrar textualmente, pues depende de la versión y opciones de GCC.
+\pendiente{copiar mensaje literal del compilador y línea; contrastar todos los valores de la tabla.}
+\evidencia{C3}{Compilación de \texttt{tipos.c}, avisos y valores observados.}{Mostrar advertencia y salida completa de ./tipos.}
+\subsection{Parte C. Bits, máscaras y desbordamiento}
+Para un bit $n$, la máscara es $1u\ll n$. \texttt{SET\_BIT} realiza OR, \texttt{CLEAR\_BIT} realiza AND con la máscara negada, \texttt{TOGGLE\_BIT} realiza XOR y \texttt{TEST\_BIT} consulta el bit. Desde $r=0$, las operaciones \texttt{SET(17)}, \texttt{SET(3)}, \texttt{TOGGLE(17)} y \texttt{CLEAR(3)} producen respectivamente \texttt{0x00020000}, \texttt{0x00020008}, \texttt{0x00000008} y \texttt{0x00000000}; \texttt{TEST(17)} al final vale 0.
+\begin{table}[!htbp]\centering\caption{Registro, desplazamiento y máscara de los seis GPIO}\scriptsize
+\begin{tabular}{|c|c|c|c|}\hline GPIO & GPFSEL & Desplazamiento & Máscara de 3 bits \\ \hline
+17 & 1 & 21 & \texttt{0x00E00000} \\ \hline
+27 & 2 & 21 & \texttt{0x00E00000} \\ \hline
+22 & 2 & 6 & \texttt{0x000001C0} \\ \hline
+23 & 2 & 9 & \texttt{0x00000E00} \\ \hline
+5 & 0 & 15 & \texttt{0x00038000} \\ \hline
+6 & 0 & 18 & \texttt{0x001C0000} \\ \hline
+\end{tabular}\end{table}
+Para GPIO22, la nueva demostración utiliza \texttt{GPFSEL2}, desplazamiento 6 y máscara \texttt{0x000001C0}. Si inicialmente el registro vale \texttt{0xFFFFFFFF}, borrar el campo y colocar el valor 1 produce \texttt{0xFFFFFE7F}. En cambio, si se omite \texttt{\~{}mascara} y solo se aplica OR, los tres bits siguen en 111 (valor 7) en vez de quedar en 001 (salida): no se reemplaza el campo.
+En \texttt{desborde.c}, un \texttt{uint32\_t} vuelve a cero al rebasar \texttt{UINT32\_MAX}, de manera definida por C. El desbordamiento de \texttt{int} con signo es comportamiento indefinido; el detector \texttt{-fsanitize=undefined} debe señalar la operación que lo produce. Se prefiere un tipo sin signo para representar bits de un registro GPIO.
+\pendiente{anotar salida modificada para GPIO22, salida del sanitizador e iteración exacta; agregar valor alternativo usado al ejecutar desborde.}
+\evidencia{C4}{Operaciones con máscaras y demostración sobre GPIO22.}{Salida de bits.c antes y después del cambio.}
+\evidencia{C5}{Desbordamiento de enteros y reporte del sanitizador.}{Salida de ./desborde y ./desborde\_ub.}
+\subsection{Parte D. Acceso a registros reales del GPIO}
+La estructura \texttt{gpio\_regs\_t} de \texttt{gpio\_regs.h} representa los registros \texttt{GPFSEL0} (offset 0x00), \texttt{GPSET0} (0x1C), \texttt{GPCLR0} (0x28) y \texttt{GPLEV0} (0x34); \texttt{\_Static\_assert} verifica sus posiciones. \texttt{gpio\_abrir} abre \texttt{/dev/gpiomem}, mapea 4096 bytes con \texttt{mmap} y retorna un puntero a la estructura. \texttt{regs\_leer.c} inspecciona el campo de tres bits y el nivel de los pines sin escribir sobre ellos. El valor 0 significa entrada, 1 salida y los valores 2--7 corresponden a funciones alternas según el mapeo del programa.
+\pendiente{copiar salida de regs\_leer y gpioinfo; identificar estado real de pines 2,3,8--11 y contrastar predicciones.}
+\evidencia{C6}{Funciones de los pines y comparación con \texttt{gpioinfo}.}{Salidas de regs\_leer y gpioinfo.}
+El archivo \texttt{leds\_regs.c} cambia solo los campos de los cuatro pines configurados como salida. Una escritura a \texttt{GPSET[0]} con \texttt{LED\_MASCARA} enciende simultáneamente los cuatro LEDs, y una a \texttt{GPCLR[0]} los apaga. Para encender únicamente GPIO17 y GPIO22, la máscara es
+\begin{equation}\texttt{BIT(17)|BIT(22)}=\texttt{0x00420000}.\end{equation}
+La lectura \texttt{GPLEV[0] \& LED\_MASCARA} permite verificar los niveles. El programa original restaura los cuatro GPIO a modo entrada al terminar; debe comprobarse con \texttt{gpioinfo}. Se requiere una escritura a \texttt{GPSET0} para encender cuatro pines simultáneamente; la comparación con la Práctica 2 depende de cómo se implementó allí.
+\pendiente{confirmar estados observados, GPLEV y número de llamadas en la Práctica 2.}
+\evidencia{C7}{Encendido y apagado de LEDs y restauración de entradas.}{Terminal de leds\_regs y, si existe, fotografía del circuito.}
+\subsection{Parte E. Efecto de \texttt{volatile}}
+Se comparan cuatro compilaciones de \texttt{boton\_regs.c}: con y sin \texttt{volatile}, tanto con \texttt{-O0} como con \texttt{-O2}. Se espera que las versiones con \texttt{volatile} consulten repetidamente \texttt{GPLEV0}; sin \texttt{volatile}, una compilación optimizada puede leer una sola vez y conservar el resultado, impidiendo detectar cambios posteriores del botón. Sin optimización es habitual que se vuelva a leer, pero el comportamiento exacto se comprueba mediante ejecución y ensamblador. El código 0 indica detección; 124 indica que \texttt{timeout} terminó el programa. El offset de \texttt{GPLEV0} es 52 bytes (0x34).
+\begin{table}[!htbp]\centering\caption{Predicciones para las cuatro compilaciones}\scriptsize
+\begin{tabular}{|c|c|p{2.8cm}|}\hline Versión & Optimización & Predicción (a verificar) \\ \hline
+Con volatile & O0 & Detecta la pulsación. \\ \hline
+Sin volatile & O0 & Probablemente detecta. \\ \hline
+Con volatile & O2 & Detecta la pulsación. \\ \hline
+Sin volatile & O2 & Puede no detectar y terminar en 124. \\ \hline
+\end{tabular}\end{table}
+\pendiente{llenar resultados y códigos de salida de las 4 versiones y copiar fragmentos reales de con.s y sin.s.}
+\evidencia{C8}{Resultados de las cuatro versiones del botón.}{Salidas de timeout y códigos de retorno.}
+\evidencia{C9}{Comparación de instrucciones ensamblador con y sin \texttt{volatile}.}{Fragmentos con.s y sin.s con lectura de offset 52.}
+\subsection{Parte F. Tramas de los sensores}
+El MCP3008 produce una lectura de 10 bits; el código reconstruye su valor como
+\begin{equation}v=((\texttt{rx[1]}\ \&\ 0x03)\ll 8)\;|\;\texttt{rx[2]}.\end{equation}
+Sin la máscara \texttt{0x03}, se podrían incorporar bits superiores que no pertenecen al resultado ADC. El valor $v$ se transforma en voltaje aproximado con $V=3.3v/1023$ para la referencia indicada en la guía. La temperatura cruda del BMP280, codificada en 20 bits, se obtiene mediante
+\begin{equation}\texttt{adc\_T}=(t\_0\ll12)|(t\_1\ll4)|(t\_2\gg4).\end{equation}
+Los coeficientes \texttt{dig\_T1}, \texttt{dig\_T2} y \texttt{dig\_T3} se leen de los registros de calibración del BMP280 y se combinan en orden little-endian. Si los bytes reales de \texttt{dig\_T1} son $b\_0,b\_1$, entonces el valor correcto es $b\_0+256b\_1$, mientras que invertirlos daría $b\_1+256b\_0$. La compensación entera del manual del sensor devuelve centésimas de grado Celsius.
+\pendiente{dirección BMP280, cinco salidas reales, mínimo/máximo del potenciómetro, cambio al tocar sensor, bytes de muestra y cálculo numérico manual.}
+\evidencia{C10}{Lecturas SPI e I2C y calibración del BMP280.}{Salida completa de sensores.c, incluyendo bytes y temperatura.}
+\evidencia{C11}{Variación de voltaje y temperatura con el potenciómetro y el sensor.}{Valores extremos y lectura tras calentar el sensor con el dedo.}
+\subsection{Reto final. Panel de control}
+El programa \texttt{panel.c} combina lectura continua del MCP3008 y acceso directo a GPIO. El rango 0--1023 se divide en cinco zonas: $0$--$204$ (0 LEDs), $205$--$409$ (1), $410$--$614$ (2), $615$--$819$ (3) y $820$--$1023$ (4). Los LEDs se encienden en orden GPIO17, 27, 22 y 23, escribiendo una máscara de encendido a \texttt{GPSET0} y otra de apagado a \texttt{GPCLR0}. El botón GPIO5 alterna el modo activo/congelado, detectando el flanco de la pulsación para impedir que una presión sostenida se cuente varias veces. GPIO6 imprime la temperatura compensada y el valor del potenciómetro en cada pulsación. El manejador de \texttt{SIGINT} modifica una bandera \texttt{volatile sig\_atomic\_t}; al salir se apagan los LEDs y se restauran a entrada los cuatro pines. También se comprueba que GPIO2, 3 y 8--11 conserven su función alterna de I2C y SPI.
+\pendiente{indicar intervalo de muestreo real, evidencia de dos botones, compilación sin advertencias, verificación de funciones alternas y cierre con Ctrl+C.}
+\evidencia{C12}{Compilación de \texttt{panel.c} sin advertencias y ejecución del reto.}{Terminal compilación y funcionamiento de botones.}
+\evidencia{C13}{Prueba del panel y restauración del circuito.}{Lecturas durante la prueba y salida con Ctrl+C.}
+\subsection{Parte G. Limpieza y entrega}
+El archivo \texttt{.gitignore} excluye ejecutables y archivos de ensamblador; \texttt{make clean} elimina los binarios y el commit conserva fuentes C, \texttt{gpio\_regs.h}, \texttt{Makefile} y \texttt{evidencia.md}. Se comprueba con \texttt{git status} y \texttt{git log --stat -1}. Antes de desconectar se verifican los LEDs apagados y la detección del BMP280 en I2C.
+\pendiente{confirmar lista real de archivos versionados y último commit.}
+\evidencia{C14}{Archivos entregados y commit de la práctica.}{Git status y git log --stat -1.}
+\section{Resultados y análisis}
+Los resultados teóricos permiten distinguir situaciones en que la representación binaria modifica la semántica del programa. La promoción de \texttt{uint8\_t} a \texttt{int} explica la diferencia entre 300 y 44, y la alineación explica el tamaño distinto de las estructuras con y sin \texttt{packed}. La tabla de GPIO muestra por qué es esencial aislar campos de tres bits: escribir un valor completo podría cambiar accidentalmente funciones alternativas de SPI o I2C. El experimento de \texttt{volatile} evalúa un problema diferente: la necesidad de efectuar lecturas repetidas de memoria que cambia externamente al programa. Para evaluar si se cumplieron experimentalmente estas predicciones deben incorporarse las salidas de terminal y fotografías identificadas en las figuras precedentes.
+
+\textbf{Análisis experimental pendiente:} \pendiente{resumir los resultados realmente observados en Partes A--F y en el reto; no utilizar valores supuestos.}
+\section{Conclusiones individuales}
+\textbf{Belmont Muñoz Samuel.} \pendiente{conclusión personal respaldada por sus observaciones de la práctica.}
+
+\textbf{Domínguez Palacios Jesús Alejandro.} \pendiente{conclusión personal respaldada por sus observaciones de la práctica.}
+
+\textbf{Dorantes Mejía Emmanuel.} \pendiente{conclusión personal respaldada por sus observaciones de la práctica.}
+
+\textbf{García Olvera Emiliano.} \pendiente{conclusión personal respaldada por sus observaciones de la práctica.}
+
+\textbf{Hernández Alonso Antonio Adonahí.} \pendiente{conclusión personal respaldada por sus observaciones de la práctica.}
+
+\textbf{Jiménez Reyes Alan Yael.} \pendiente{conclusión personal respaldada por sus observaciones de la práctica.}
+\begin{thebibliography}{00}
+\bibitem{guia} Delgado Vargas, K. A. (2026). \textit{Práctica 7. C embebido: Registros reales, bits y volatile con el circuito de las prácticas 2 y 3}. Fundamentos de Sistemas Embebidos, Facultad de Ingeniería, UNAM. Guía proporcionada en clase.
+\bibitem{gcc} Free Software Foundation. \textit{Using the GNU Compiler Collection (GCC)}. \texttt{https://gcc.gnu.org/onlinedocs/}
+\bibitem{bcm} Broadcom. \textit{BCM2711 ARM Peripherals}. Manual de referencia del controlador utilizado en Raspberry Pi 4.
+\bibitem{bosch} Bosch Sensortec. \textit{BMP280 Digital Pressure Sensor: Data Sheet}. Documentación técnica del sensor.
+\bibitem{microchip} Microchip Technology. \textit{MCP3004/3008: 10-Bit A/D Converters with SPI Serial Interface}. Hoja de datos.
+\end{thebibliography}
+\end{document}
