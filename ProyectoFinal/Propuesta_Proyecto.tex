@@ -221,60 +221,40 @@ El diagrama muestra claramente los sensores, actuadores, procesadores, buses de 
 \textbf{Pregunta:} ¿Qué categoría de SO embebido usarían para su proyecto — bare-metal, RTOS o Linux embebido — y por qué?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-Se seleccionó una arquitectura híbrida: \textit{bare-metal} (mediante Pico SDK) para el nodo esclavo (Raspberry Pi Pico) con el fin de garantizar un determinismo estricto de E/S y un muestreo periódico a $200\text{ Hz}$ ($5\text{ ms}$) sin \textit{jitter}, y Linux Embebido (Raspberry Pi OS Lite) de 64 bits en el nodo maestro (Raspberry Pi 4 con 1 GB de RAM) para soportar la ejecución de RetroArch, manejo de video y la pila de red.
 
-\textbf{Autor:} Belmont Muñoz Samuel \\
-\textbf{Fecha:} 09/09/2026
 
 \subsection{Clase 8: Planificación (scheduling)}
 
 \textbf{Pregunta:} ¿Qué tareas tendría su proyecto, y qué prioridad relativa le darían a cada una? ¿Alguna necesita planificación preemptiva sí o sí?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-En el RP2040 se dividen dos tareas principales en hardware simétrico: la adquisición síncrona de E/S mediante el periférico SPI y ADC (Core 0, alta prioridad de tiempo real) y la atención de la pila USB HID (Core 1). En la Raspberry Pi 4, el planificador CFS de Linux gestiona la planificación preventiva, asignando alta prioridad (\textit{SCHED\_FIFO}) al hilo de emulación de RetroArch para garantizar estabilidad estricta a $60\text{ FPS}$ frente a procesos en segundo plano de telemetría y red.
 
-\textbf{Autor:} Domínguez Palacios Jesús Alejandro \\
-\textbf{Fecha:} 10/09/2026
 
 \subsection{Clase 9: Sincronización}
 
 \textbf{Pregunta:} ¿Qué recurso compartido tendría su proyecto entre dos tareas, y qué mecanismo de sincronización usarían para protegerlo?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-El búfer en memoria RAM del RP2040 que almacena el estado actual de los botones leídos del registro $74HC165$ es compartido entre el bucle de adquisición (Core 0) y el controlador USB HID (Core 1). Se emplearán mecanismos de exclusión mutua ligeros de hardware y variables atómicas para evitar condiciones de carrera sin incurrir en penalizaciones de latencia perceptibles.
-
-\textbf{Autor:} Dorantes Mejía Emmanuel \\
-\textbf{Fecha:} 17/09/2026
 
 \subsection{Clase 10: Gestión de Memoria en SO embebidos}
 
 \textbf{Pregunta:} ¿Su proyecto se parece más al Caso A (asignaciones frecuentes y predecibles) o al Caso B (una asignación grande y rara)? ¿Qué estrategia de memoria usarían, con qué números?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-El proyecto se alinea estrictamente al Caso A en el microcontrolador: todas las asignaciones de memoria son estáticas y predecibles, utilizando menos de $40\text{ KB}$ de Flash y $< 15\text{ KB}$ de los $264\text{ KB}$ de SRAM del RP2040, evitando la fragmentación por completo. En la Raspberry Pi 4, se gestiona memoria dinámica administrada por el kernel de Linux sobre $1\text{ GB}$ de RAM, destinando un bloque optimizado para caché de ROMs y buffers de video.
-
-\textbf{Autor:} García Olvera Emiliano \\
-\textbf{Fecha:} 23/09/2026
 
 \subsection{Clase 11: Comunicación entre Procesos (IPC)}
 
 \textbf{Pregunta:} ¿Su proyecto tendría más de un proceso comunicándose? Si es así, ¿qué mecanismo de IPC usarían y por qué?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-Sí. En el nodo maestro se emplean sockets de red (UDP/TCP) para la comunicación Netplay entre consolas en red local (LAN), y un canal serial USB CDC bidireccional entre el script de telemetría (que inspecciona la memoria RAM de RetroArch) y el microcontrolador esclavo para gobernar la retroalimentación háptica.
 
-\textbf{Autor:} Hernández Alonso Antonio Adonahí \\
-\textbf{Fecha:} 24/09/2026
 
 \subsection{Clase 12: Kernel, syscalls y drivers}
 
 \textbf{Pregunta:} ¿Qué tareas de su proyecto tienen una temporización que un proceso de usuario no puede garantizar? Para cada una, ¿usarían una syscall por evento, mmap de registros o un periférico de hardware configurado por su driver?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-Para la lectura de los botones en el esclavo, se utiliza directamente el bloque de hardware SPI dedicado del RP2040 y temporizadores de hardware internos para el \textit{polling} a $200\text{ Hz}$, evitando depender de retardos en espacio de usuario. En el maestro, el acceso a drivers de video y red se realiza mediante llamadas al sistema (\textit{syscalls}) optimizadas del kernel de Linux.
 
-\textbf{Autor:} Jiménez Reyes Alan Yael \\
-\textbf{Fecha:} 07/10/2026
 
 \section{Lista de Materiales y Análisis de Riesgos}
 
