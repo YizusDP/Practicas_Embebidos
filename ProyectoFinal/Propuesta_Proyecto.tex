@@ -54,7 +54,7 @@
 \begin{document}
 
 \title{Propuesta de Proyecto Final: \\
-	\large [Nombre del Proyecto] \\
+	\large Terminal de Juegos Retro Distribuida con Mando Embebido (Pong y Pac-Man) \\
 	Sistemas Embebidos - Avance 1}
 
 \author{
@@ -94,53 +94,51 @@
 \begin{center}
 	\vspace{-0.3cm}
 	{\small
-		\textbf{Grupo:} 6  | 
 		\textbf{Fecha de entrega:} 19/10/2026  | 
-		\textbf{Avance:} 1 de 4
+		\textbf{Avance:} 1
 	}
 	\vspace{0.2cm}
 \end{center}
 
 \begin{abstract}
-	Este documento presenta la propuesta de diseño para [nombre del proyecto], un sistema embebido desarrollado como proyecto final de la asignatura de Sistemas Embebidos. Se describe el problema a resolver, los usuarios objetivo, el alcance del sistema, los requisitos funcionales y no funcionales con criterios de aceptación numéricos, la arquitectura del sistema mediante diagrama de bloques, la justificación de la plataforma de hardware y software seleccionada, la bitácora de decisiones de diseño, la lista de materiales con análisis de riesgos, y el plan de trabajo con asignación de responsabilidades. El sistema está diseñado para [breve descripción del propósito].
+	Este documento presenta la propuesta de diseño para una terminal de juego retro distribuida basada en hardware embebido, desarrollada como proyecto final de la asignatura de Sistemas Embebidos. El sistema integra un nodo esclavo (Raspberry Pi Pico) para la adquisición de entradas físicas digitales (mediante registros de desplazamiento $74HC165$) y analógicas (potenciómetro), implementando comunicación USB HID de baja latencia y retroalimentación háptica y visual mediante actuadores. Como nodo maestro, se emplea una Raspberry Pi 4 Model B con 1 GB de RAM corriendo RetroArch sobre Linux Embebido, permitiendo además la sincronización de partidas multijugador en red local (LAN) y preparando una infraestructura extensible para multijugador remoto mediante VPN (WireGuard). Se detallan los requisitos funcionales y no funcionales con criterios de aceptación numéricos, la arquitectura modular mediante diagrama de bloques, la justificación cuantitativa de plataformas y sistemas operativos, la bitácora de decisiones de diseño, la lista de materiales con análisis de riesgos y el plan de trabajo detallado para un equipo de 6 integrantes en un período de 3 semanas.
 \end{abstract}
 
 \begin{IEEEkeywords}
-	Sistemas embebidos, Raspberry Pi, [otros keywords del proyecto]
+	Sistemas embebidos, Raspberry Pi Pico, USB HID, RetroArch, Redes LAN.
 \end{IEEEkeywords}
 
 \section{Problema, Usuario y Alcance}
 
 \subsection{Descripción del Problema}
 
-[Describir el problema que resuelve el sistema. ¿Qué necesidad o situación motiva este proyecto? ¿Por qué es importante resolverlo?]
+La necesidad de contar con una plataforma de entretenimiento retro (Arcade clásica ejecutando juegos retro) que integre hardware físico de control de bajo nivel (controles personalizados basados en microcontroladores y registros de desplazamiento) y soporte conectividad en red local (LAN) e interconexión remota por VPN. Esto se realiza evitando latencias perceptibles y la complejidad innecesaria de desarrollar motores de juego propios, enfocando el esfuerzo académico en la arquitectura de comunicación, el determinismo de E/S y los protocolos distribuidos.
 
 \subsection{Usuario Objetivo}
 
-[¿Quién utilizará este sistema? Describir el perfil del usuario, sus necesidades específicas y el contexto de uso.]
+Estudiantes, entusiastas de los sistemas embebidos y jugadores que buscan una experiencia de arcade retro fiel y altamente responsiva, requiriendo mandos físicos dedicados con retroalimentación háptica y una respuesta de control de alta velocidad con un mínimo retraso (\textit{low-input lag}).
 
 \subsection{Alcance del Proyecto}
 
 \subsubsection{Dentro del Alcance}
 
 El sistema incluirá las siguientes funcionalidades:
-
 \begin{itemize}
-	\item {[Funcionalidad 1]}
-	\item {[Funcionalidad 2]}
-	\item {[Funcionalidad 3]}
-	\item {[Funcionalidad 4]}
-	\item {[Funcionalidad 5]}
+	\item Controles físicos personalizados gestionados por un microcontrolador Raspberry Pi Pico (RP2040).
+	\item Uso de registros de desplazamiento ($74HC165$) para la expansión y serialización de entradas digitales de botones mediante los puertos SPI (no implementación del protocolo).
+	\item Lectura de entradas analógicas mediante el ADC del RP2040 para el control del eje vertical en \textit{Pong}.
+	\item Actuadores integrados en el mando (motor de vibración háptica, LEDs de estado y buzzer pasivo) controlados mediante PWM y GPIO.
+	\item Emulación optimizada en Raspberry Pi 4 Model B (1 GB) mediante RetroArch con capacidad de telemetría básica (lectura de RAM del juego para activar actuadores).
+	\item Conectividad multijugador local en red LAN mediante protocolos de red estándar.
 \end{itemize}
 
 \subsubsection{Fuera del Alcance}
 
 Las siguientes funcionalidades NO serán implementadas en este proyecto:
-
 \begin{itemize}
-	\item {[Exclusión 1]}
-	\item {[Exclusión 2]}
-	\item {[Exclusión 3]}
+	\item El desarrollo desde cero de las ROMs, la física o la lógica interna de los videojuegos.
+	\item La implementación definitiva en producción del multijugador WAN a través de la VPN con WireGuard (quedando delimitado estrictamente como un objetivo opcional o \textit{stretch goal}).
+	\item El uso de sensores inerciales complejos (acelerómetros y giroscopios) en el mando base.
 \end{itemize}
 
 \section{Requisitos del Sistema}
@@ -150,82 +148,82 @@ Esta sección presenta los requisitos funcionales y no funcionales del sistema, 
 \subsection{Requisitos Funcionales}
 
 \begin{enumerate}
-	\item \textbf{[Nombre del Requisito 1]} \\
-	      Descripción: [Descripción del requisito] \\
-	      \textit{Criterio de aceptación:} [Criterio numérico medible, ej: "El sistema debe detectar eventos en menos de 100ms"]
+	\item \textbf{Adquisición de Entradas Digitales} \\
+	      Descripción: El microcontrolador (Raspberry Pi Pico) deberá leer el estado completo de los botones del mando mediante el registro de desplazamiento ($74HC165$) utilizando una rutina de \textit{polling} a una tasa fija de $5\text{ ms}$ ($\pm 0.5\text{ ms}$) por ciclo. \\
+	      \textit{Criterio de aceptación:} Frecuencia de muestreo estable de $200\text{ Hz}$ verificada en el bus SPI.
 
-	\item \textbf{[Nombre del Requisito 2]} \\
-	      Descripción: [Descripción del requisito] \\
-	      \textit{Criterio de aceptación:} [Criterio numérico medible]
+	\item \textbf{Lectura Analógica de Eje} \\
+	      Descripción: El sistema deberá leer la posición del potenciómetro del eje de los juegos que lo requieran (como \textit{Pong}) para los controles correspondientes. \\
+	      \textit{Criterio de aceptación:} Resolución de conversión del ADC de al menos $10\text{ bits}$ con un período de muestreo no mayor a $10\text{ ms}$.
 
-	\item \textbf{[Nombre del Requisito 3]} \\
-	      Descripción: [Descripción del requisito] \\
-	      \textit{Criterio de aceptación:} [Criterio numérico medible]
+	\item \textbf{Telemetría y Retroalimentación Bidireccional} \\
+	      Descripción: El sistema maestro extraerá variables de estado del juego (puntuación o vidas) desde la memoria de RetroArch y enviará comandos al esclavo para gobernar los actuadores. \\
+	      \textit{Criterio de aceptación:} Recepción y procesamiento de comandos de telemetría en el esclavo en menos de $20\text{ ms}$ tras el evento en el juego.
 \end{enumerate}
 
 \subsection{Requisitos No Funcionales}
 
 \begin{enumerate}
-	\item \textbf{[Nombre del Requisito 4]} \\
-	      Descripción: [Descripción del requisito] \\
-	      \textit{Criterio de aceptación:} [Criterio numérico medible, ej: "Consumo de energía menor a 5W en operación continua"]
+	\item \textbf{Latencia de Control (Input Lag)} \\
+	      Descripción: El tiempo transcurrido desde la pulsación física de un botón en el mando hasta la recepción del evento HID por el emulador en la Raspberry Pi 4 no deberá superar los umbrales de tiempo real. \\
+	      \textit{Criterio de aceptación:} Latencia de extremo a extremo menor o igual a $15\text{ ms}$.
 
-	\item \textbf{[Nombre del Requisito 5]} \\
-	      Descripción: [Descripción del requisito] \\
-	      \textit{Criterio de aceptación:} [Criterio numérico medible]
+	\item \textbf{Respuesta Háptica} \\
+	      Descripción: El motor de vibración del mando deberá activarse en respuesta a eventos del juego (como impacto o pérdida de vida). \\
+	      \textit{Criterio de aceptación:} Retardo de activación del actuador háptico menor o igual a $50\text{ ms}$ tras la emisión de la señal de control.
+
+	\item \textbf{Conectividad en Red Local (LAN)} \\
+	      Descripción: El sistema permitirá partidas multijugador locales entre dos nodos conectados a la misma subred. \\
+	      \textit{Criterio de aceptación:} Pérdida de paquetes del $0\%$ y retardo (\textit{ping}) promedio inferior a $5\text{ ms}$.
 \end{enumerate}
 
 \section{Diagrama de Bloques}
 
-El diagrama debe mostrar claramente: sensores, actuadores, procesadores, buses de comunicación (GPIO, I2C, SPI, UART) y el flujo de datos entre componentes.
+El diagrama muestra claramente los sensores, actuadores, procesadores, buses de comunicación (SPI, USB HID, PWM/GPIO, ADC, HDMI, Ethernet) y el flujo de datos entre componentes.
 
 \begin{figure}[H]
 	\centering
-	\imgph{Diagrama de bloques del sistema}{6cm}
+	%\includegraphics[width=0.95\columnwidth]{Diagrama_Bloques.png}
 	\caption{Arquitectura del sistema con sensores, actuadores, procesadores, buses y flujo de datos.}
 	\label{fig:diagrama_bloques}
 \end{figure}
 
-\textbf{Descripción:} {[Breve descripción textual del diagrama explicando los componentes principales, sus conexiones y el flujo de datos]}
+\textbf{Descripción:} El sistema se compone de un Mando Arcade con sensores (botones digitales y potenciómetro analógico) conectados a un registro de desplazamiento $74HC165$ mediante líneas paralelas y enlace síncrono usando los puertos SPI hacia el microcontrolador esclavo (Raspberry Pi Pico - RP2040). El esclavo gestiona la adquisición por \textit{polling} a $200\text{ Hz}$, alimenta actuadores (motor de vibración, LEDs, buzzer) vía PWM/GPIO y se comunica mediante bus USB HID (hacia adelante) y canales de telemetría (hacia atrás) con el nodo maestro (Raspberry Pi 4 Model B con 1 GB de RAM). El maestro ejecuta RetroArch, emite video por HDMI a la pantalla, y se conecta mediante Ethernet/Wi-Fi a la interfaz de red LAN/WAN para el modo multijugador.
 
 \section{Plataforma y Sistema Operativo}
 
 \subsection{Plataforma de Hardware}
 
-\textbf{Plataforma elegida:} {[Raspberry Pi 4 / STM32 / Ambas]}
+\textbf{Plataforma elegida:} Arquitectura heterogénea distribuida (Raspberry Pi Pico y Raspberry Pi 4 Model B).
 
 \textbf{Justificación:}
-
 \begin{itemize}
-	\item \textbf{Determinismo}: {[Análisis de requisitos de tiempo real y cómo la plataforma los cumple]}
-	\item \textbf{Huella de memoria}: {[Cifras de RAM y almacenamiento necesarios vs disponibles]}
-	\item \textbf{Multitarea}: {[Cantidad de tareas concurrentes y cómo la plataforma las soporta]}
+	\item \textbf{Determinismo}: El RP2040 (Nodo Esclavo) garantiza un determinismo de tiempo real estricto debido a su arquitectura de doble núcleo y ejecución directa sin sistema operativo, logrando un muestreo exacto a $200\text{ Hz}$ sin \textit{jitter}. La Raspberry Pi 4 (Nodo Maestro) maneja tiempo real blando, cumpliendo con la ventana de renderizado de $60\text{ FPS}$ ($\le 16.6\text{ ms}$ por cuadro).
+	\item \textbf{Huella de memoria}: El RP2040 cuenta con $264\text{ KB}$ de SRAM y $2\text{ MB}$ de Flash (utilizando $< 40\text{ KB}$ de Flash y $< 15\text{ KB}$ de RAM). La Raspberry Pi 4 cuenta con $1\text{ GB}$ de RAM LPDDR4, de la cual solo se consumen $120-150\text{ MB}$ en reposo bajo Linux Embebido \textit{headless}, dejando más del $85\%$ disponible para caché de ROMs y buffers de video.
+	\item \textbf{Multitarea}: El RP2040 emplea multitarea simétrica por hardware en sus dos núcleos ARM Cortex-M0+ a $133\text{ MHz}$ (Core 0 para E/S física y SPI; Core 1 para pila USB HID). La Raspberry Pi 4 utiliza un Quad-Core ARM Cortex-A72 a $1.5\text{ GHz}$ con el planificador CFS de Linux para distribuir hilos de emulación, telemetría y red.
 \end{itemize}
 
 \subsection{Categoría de Sistema Operativo}
 
-\textbf{SO seleccionado:} {[Linux embebido / RTOS / Bare-metal]}
+\textbf{SO seleccionado:} \textit{Bare-metal} (Pico SDK) en el esclavo y Linux Embebido (Raspberry Pi OS Lite de 64 bits) en el maestro.
 
 \textbf{Justificación:}
-
 \begin{itemize}
-	\item \textbf{Determinismo}: {[¿Requiere garantías de tiempo real? Cifras de latencia máxima]}
-	\item \textbf{Huella de memoria}: {[Overhead del SO en KB/MB vs memoria disponible]}
-	\item \textbf{Multitarea}: {[Tipo de planificación requerida y soporte del SO]}
+	\item \textbf{Determinismo}: El enfoque \textit{bare-metal} elimina cambios de contexto imprevistos, asegurando latencias de microsegundos en el esclavo. El GPOS en el maestro provee abstracción robusta para controladores USB, audio y pilas de red sin requerir determinismo estricto a nivel de microsegundos.
+	\item \textbf{Huella de memoria}: Cero sobrecosto de sistema operativo en el microcontrolador. En el maestro, el modo consola sin entorno gráfico reduce drásticamente la huella en memoria RAM.
+	\item \textbf{Multitarea}: El esclavo aprovecha concurrencia de hardware puro con doble núcleo. El maestro implementa multitarea preventiva gestionada por el núcleo de Linux.
 \end{itemize}
 
 \section{Bitácora de Decisiones de Diseño}
-
-Esta sección documenta las decisiones técnicas tomadas durante las clases 7 a 12, aplicadas específicamente a nuestro proyecto. Cada entrada incluye cifras y justificaciones cuantitativas.
 
 \subsection{Clase 7: Kickoff de proyecto + Panorama de SO embebidos}
 
 \textbf{Pregunta:} ¿Qué categoría de SO embebido usarían para su proyecto — bare-metal, RTOS o Linux embebido — y por qué?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+Se seleccionó una arquitectura híbrida: \textit{bare-metal} (mediante Pico SDK) para el nodo esclavo (Raspberry Pi Pico) con el fin de garantizar un determinismo estricto de E/S y un muestreo periódico a $200\text{ Hz}$ ($5\text{ ms}$) sin \textit{jitter}, y Linux Embebido (Raspberry Pi OS Lite) de 64 bits en el nodo maestro (Raspberry Pi 4 con 1 GB de RAM) para soportar la ejecución de RetroArch, manejo de video y la pila de red.
 
-\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Autor:} Belmont Muñoz Samuel \\
 \textbf{Fecha:} 09/09/2026
 
 \subsection{Clase 8: Planificación (scheduling)}
@@ -233,9 +231,9 @@ Esta sección documenta las decisiones técnicas tomadas durante las clases 7 a 
 \textbf{Pregunta:} ¿Qué tareas tendría su proyecto, y qué prioridad relativa le darían a cada una? ¿Alguna necesita planificación preemptiva sí o sí?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+En el RP2040 se dividen dos tareas principales en hardware simétrico: la adquisición síncrona de E/S mediante el periférico SPI y ADC (Core 0, alta prioridad de tiempo real) y la atención de la pila USB HID (Core 1). En la Raspberry Pi 4, el planificador CFS de Linux gestiona la planificación preventiva, asignando alta prioridad (\textit{SCHED\_FIFO}) al hilo de emulación de RetroArch para garantizar estabilidad estricta a $60\text{ FPS}$ frente a procesos en segundo plano de telemetría y red.
 
-\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Autor:} Domínguez Palacios Jesús Alejandro \\
 \textbf{Fecha:} 10/09/2026
 
 \subsection{Clase 9: Sincronización}
@@ -243,9 +241,9 @@ Esta sección documenta las decisiones técnicas tomadas durante las clases 7 a 
 \textbf{Pregunta:} ¿Qué recurso compartido tendría su proyecto entre dos tareas, y qué mecanismo de sincronización usarían para protegerlo?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+El búfer en memoria RAM del RP2040 que almacena el estado actual de los botones leídos del registro $74HC165$ es compartido entre el bucle de adquisición (Core 0) y el controlador USB HID (Core 1). Se emplearán mecanismos de exclusión mutua ligeros de hardware y variables atómicas para evitar condiciones de carrera sin incurrir en penalizaciones de latencia perceptibles.
 
-\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Autor:} Dorantes Mejía Emmanuel \\
 \textbf{Fecha:} 17/09/2026
 
 \subsection{Clase 10: Gestión de Memoria en SO embebidos}
@@ -253,9 +251,9 @@ Esta sección documenta las decisiones técnicas tomadas durante las clases 7 a 
 \textbf{Pregunta:} ¿Su proyecto se parece más al Caso A (asignaciones frecuentes y predecibles) o al Caso B (una asignación grande y rara)? ¿Qué estrategia de memoria usarían, con qué números?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+El proyecto se alinea estrictamente al Caso A en el microcontrolador: todas las asignaciones de memoria son estáticas y predecibles, utilizando menos de $40\text{ KB}$ de Flash y $< 15\text{ KB}$ de los $264\text{ KB}$ de SRAM del RP2040, evitando la fragmentación por completo. En la Raspberry Pi 4, se gestiona memoria dinámica administrada por el kernel de Linux sobre $1\text{ GB}$ de RAM, destinando un bloque optimizado para caché de ROMs y buffers de video.
 
-\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Autor:} García Olvera Emiliano \\
 \textbf{Fecha:} 23/09/2026
 
 \subsection{Clase 11: Comunicación entre Procesos (IPC)}
@@ -263,9 +261,9 @@ Esta sección documenta las decisiones técnicas tomadas durante las clases 7 a 
 \textbf{Pregunta:} ¿Su proyecto tendría más de un proceso comunicándose? Si es así, ¿qué mecanismo de IPC usarían y por qué?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+Sí. En el nodo maestro se emplean sockets de red (UDP/TCP) para la comunicación Netplay entre consolas en red local (LAN), y un canal serial USB CDC bidireccional entre el script de telemetría (que inspecciona la memoria RAM de RetroArch) y el microcontrolador esclavo para gobernar la retroalimentación háptica.
 
-\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Autor:} Hernández Alonso Antonio Adonahí \\
 \textbf{Fecha:} 24/09/2026
 
 \subsection{Clase 12: Kernel, syscalls y drivers}
@@ -273,9 +271,9 @@ Esta sección documenta las decisiones técnicas tomadas durante las clases 7 a 
 \textbf{Pregunta:} ¿Qué tareas de su proyecto tienen una temporización que un proceso de usuario no puede garantizar? Para cada una, ¿usarían una syscall por evento, mmap de registros o un periférico de hardware configurado por su driver?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-{[Respuesta específica con cifras y detalles técnicos relacionados con el proyecto]}
+Para la lectura de los botones en el esclavo, se utiliza directamente el bloque de hardware SPI dedicado del RP2040 y temporizadores de hardware internos para el \textit{polling} a $200\text{ Hz}$, evitando depender de retardos en espacio de usuario. En el maestro, el acceso a drivers de video y red se realiza mediante llamadas al sistema (\textit{syscalls}) optimizadas del kernel de Linux.
 
-\textbf{Autor:} {[Nombre del estudiante]} \\
+\textbf{Autor:} Jiménez Reyes Alan Yael \\
 \textbf{Fecha:} 07/10/2026
 
 \section{Lista de Materiales y Análisis de Riesgos}
@@ -293,19 +291,21 @@ La Tabla \ref{tab:bom} presenta la lista completa de materiales necesarios para 
 		\hline
 		\textbf{Componente} & \textbf{Cant.} & \textbf{Precio} & \textbf{Disponibilidad} \\
 		\hline
-		Raspberry Pi 4 (4GB) & 1 & \$X & {[Confirmada/ Disponible/ A comprar]} \\
+		Raspberry Pi 4 B (1GB) & 1 & \$1,200 MXN & Confirmada \\
 		\hline
-		{[Sensor 1]} & X & \$X & {[Estado]} \\
+		Raspberry Pi Pico (RP2040) & 1 & \$150 MXN & Confirmada \\
 		\hline
-		{[Sensor 2]} & X & \$X & {[Estado]} \\
+		Registro $74HC165$ & 2 & \$20 MXN & Confirmada \\
 		\hline
-		{[Actuador 1]} & X & \$X & {[Estado]} \\
+		Push-Buttons  & 10 & \$50 & Confirmada \\
 		\hline
-		{[Componente adicional]} & X & \$X & {[Estado]} \\
+		Potenciómetro $10\text{ k}\Omega$ & 1 & \$15 MXN & Confirmada \\
 		\hline
-		Cables y conectores & - & \$X & Disponible \\
+		Motor vibración + Actuadores & 2 & \$40 MXN & Confirmada \\
 		\hline
-		\textbf{Total estimado} & & \textbf{\$XXX} & \\
+		Cables, protoboard y fuentes & - & \$150 MXN & Disponible \\
+		\hline
+		\textbf{Total estimado} & & \textbf{\$1,620 MXN} & \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -323,13 +323,11 @@ La Tabla \ref{tab:riesgos} identifica los principales riesgos del proyecto y las
 		\hline
 		\textbf{Riesgo} & \textbf{Impacto} & \textbf{Mitigación} \\
 		\hline
-		{[Riesgo 1: ej. Retraso en llegada de componentes]} & {[Descripción del impacto]} & {[Plan de mitigación específico]} \\
+		Latencia no determinista (Input Lag) en bus USB o lectura digital. & Alto (Afecta jugabilidad arcade). & Uso del bloque SPI por hardware en Core 0 del RP2040 y configuración de descriptor HID con $bInterval = 1\text{ ms}$. \\
 		\hline
-		{[Riesgo 2: ej. Falla de comunicación I2C]} & {[Descripción del impacto]} & {[Plan de mitigación específico]} \\
+		Saturación de CPU por inspección frecuente de memoria (Telemetría). & Medio-Alto (Caída de cuadros $< 60\text{ FPS}$). & Limitar frecuencia de telemetría a $60\text{ Hz}$ y leer únicamente offsets específicos de memoria en proceso aislado. \\
 		\hline
-		{[Riesgo 3: ej. Insuficiente capacidad de procesamiento]} & {[Descripción del impacto]} & {[Plan de mitigación específico]} \\
-		\hline
-		{[Riesgo 4]} & {[Descripción del impacto]} & {[Plan de mitigación específico]} \\
+		Pérdida de paquetes o desincronización en red LAN. & Medio (Afecta multijugador). & Priorizar conexión Ethernet física en nodo maestro y utilizar Netplay nativo de RetroArch. \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -338,45 +336,44 @@ La Tabla \ref{tab:riesgos} identifica los principales riesgos del proyecto y las
 
 \subsection{Cronograma de Hitos}
 
-El proyecto se desarrollará en 4 avances principales:
-
+El proyecto se desarrollará en 4 avances principales organizados en 3 semanas de desarrollo intensivo:
 \begin{itemize}
 	\item \textbf{Avance 1 (19/oct/2026)}: Propuesta + diagrama de bloques
-	\item \textbf{Avance 2 (04/nov/2026)}: Avance de al menos 1 módulo funcional
-	\item \textbf{Avance 3 (09/nov/2026)}: Avance de integración completa
-	\item \textbf{Avance 4 (23/nov/2026)}: Demostración final del prototipo + reporte técnico
+	\item \textbf{Avance 2 (04/nov/2026)}: Avance de al menos 1 módulo funcional (hardware y firmware básico)
+	\item \textbf{Avance 3 (09/nov/2026)}: Avance de integración completa (USB HID + RetroArch + Telemetría)
+	\item \textbf{Avance 4 (23/nov/2026)}: Demostración final del prototipo + reporte técnico (Multijugador LAN)
 \end{itemize}
 
 \subsection{Distribución de Tareas}
 
-La Tabla \ref{tab:tareas} muestra la asignación de responsabilidades por tarea y por avance.
+La Tabla \ref{tab:tareas} muestra la asignación de responsabilidades por tarea y por avance, dividiendo al equipo de 6 integrantes en parejas de trabajo especializadas.
 
 \begin{table}[H]
 	\centering
 	\caption{Distribución de tareas y responsables}
 	\label{tab:tareas}
 	\small
-	\begin{tabular}{|p{1.6cm}|p{3.2cm}|p{2.2cm}|}
+	\begin{tabular}{|p{1.4cm}|p{3.4cm}|p{2.0cm}|}
 		\hline
 		\textbf{Avance} & \textbf{Tarea} & \textbf{Responsable} \\
 		\hline
-		\multirow{3}{*}{Avance 2} & {[Tarea 1]} & {[Nombre]} \\
+		\multirow{3}{*}{Avance 2} & Ensamble de circuito $74HC165$ y potenciómetro & Pareja 1 (HW) \\
 		\cline{2-3}
-		& {[Tarea 2]} & {[Nombre]} \\
+		& Firmware \textit{bare-metal} y polling a $200\text{ Hz}$ (RP2040) & Pareja 2 (FW) \\
 		\cline{2-3}
-		& {[Tarea 3]} & {[Nombre]} \\
+		& Configuración Linux Lite, RetroArch y ROMs & Pareja 3 (SW) \\
 		\hline
-		\multirow{3}{*}{Avance 3} & {[Tarea 1]} & {[Nombre]} \\
+		\multirow{3}{*}{Avance 3} & Integración física de sensores y actuadores & Pareja 1 y 2 \\
 		\cline{2-3}
-		& {[Tarea 2]} & {[Nombre]} \\
+		& Enlace USB HID y script de telemetría RAM & Pareja 2 y 3 \\
 		\cline{2-3}
-		& {[Tarea 3]} & {[Nombre]} \\
+		& Pruebas de Netplay en red local LAN & Pareja 3 (Redes) \\
 		\hline
-		\multirow{3}{*}{Avance 4} & {[Tarea 1]} & {[Nombre]} \\
+		\multirow{3}{*}{Avance 4} & Sincronización multijugador LAN avanzada & Pareja 3 (Redes) \\
 		\cline{2-3}
-		& {[Tarea 2]} & {[Nombre]} \\
+		& Pruebas de latencia de extremo a extremo ($< 15\text{ ms}$) & Pareja 1 y 2 \\
 		\cline{2-3}
-		& Integración final & Todos \\
+		& Integración final y redacción de reporte & Todos \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -384,25 +381,22 @@ La Tabla \ref{tab:tareas} muestra la asignación de responsabilidades por tarea 
 \section{Declaración de Uso de Inteligencia Artificial}
 
 Durante el desarrollo de este proyecto se utilizaron las siguientes herramientas de IA:
-
 \begin{itemize}
-	\item \textbf{Claude Code (Anthropic)}: Utilizado para [describir para qué se usó: ej. asistencia en estructura de código, revisión de sintaxis, generación de documentación, etc.]
-	\item \textbf{[Otra herramienta si aplica]}: [Descripción de uso]
+	\item \textbf{Gemini (Google)}: Utilizado como asistente de colaboración en la estructuración conceptual del proyecto, formulación de requisitos medibles con criterios numéricos, cálculo de parámetros de tiempo real y redacción de especificaciones técnicas para la documentación académica.
 \end{itemize}
 
-Todas las decisiones de diseño, arquitectura y justificaciones técnicas fueron realizadas por el equipo. Las herramientas de IA se utilizaron como asistentes para [redacción/código/documentación], pero el contenido técnico y conceptual es autoría del equipo.
-
 \begin{thebibliography}{00}
-	\bibitem{rpi_docs} Raspberry Pi Foundation. (2024). ``Raspberry Pi Documentation''. Disponible en: https://www.raspberrypi.com/documentation/
+	\bibitem{rpi_docs} Raspberry Pi Foundation. (2024). ``Raspberry Pi Documentation''. Disponible en: \url{https://www.raspberrypi.com/documentation/}
+	\bibitem{rp2040_datasheet} Raspberry Pi Ltd. (2021). \textit{RP2040 Datasheet: A microcontroller by Raspberry Pi}.
+	\bibitem{libretro_docs} The libretro Team. \textit{RetroArch Documentation and Network Command API}. Disponible en: \url{https://docs.libretro.com/}
 	\bibitem{linux_embedded} Yaghmour, K. et al. (2008). \textit{Building Embedded Linux Systems}, 2nd ed. O'Reilly Media.
 	\bibitem{embedded_systems} Lee, E. A., Seshia, S. A. (2017). \textit{Introduction to Embedded Systems: A Cyber-Physical Systems Approach}, 2nd ed. MIT Press.
-	\bibitem{[referencia_especifica]} [Autor]. ([Año]). ``[Título]''. [Fuente].
 \end{thebibliography}
 
 \vspace{0.5cm}
 
 \noindent
 \textbf{Enlace al repositorio del proyecto:} \\
-\url{https://github.com/[usuario]/[repositorio]}
+\url{https://github.com/SistemasEmbebidos-Grupo6/ProyectoFinal-ArcadeRetro}
 
 \end{document}
