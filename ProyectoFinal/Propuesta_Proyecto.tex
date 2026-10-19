@@ -342,7 +342,10 @@ Sí, usamos un proceso separado para telemetría que se comunica con RetroArch (
 \textbf{Pregunta:} ¿Qué tareas de su proyecto tienen una temporización que un proceso de usuario no puede garantizar? Para cada una, ¿usarían una syscall por evento, mmap de registros o un periférico de hardware configurado por su driver?
 
 \textbf{Respuesta aplicada al proyecto:} \\
+Para la lectura de los botones en el esclavo, se utiliza directamente el bloque de hardware SPI dedicado del RP2040 y temporizadores de hardware internos para el \textit{polling} a $200\text{ Hz}$, evitando depender de retardos en espacio de usuario. En el maestro, el acceso a drivers de video y red se realiza mediante llamadas al sistema (\textit{syscalls}) optimizadas del kernel de Linux.
 
+\textbf{Autor:} Belmont Muñoz Samuel \\
+\textbf{Fecha:} 17/10/2026
 
 \section{Lista de Materiales y Análisis de Riesgos}
 
