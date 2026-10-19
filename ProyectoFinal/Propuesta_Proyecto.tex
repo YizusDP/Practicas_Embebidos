@@ -286,6 +286,21 @@ Las tareas de los controles son las más importantes porque definen el \textit{i
 \textbf{Pregunta:} ¿Su proyecto se parece más al Caso A (asignaciones frecuentes y predecibles) o al Caso B (una asignación grande y rara)? ¿Qué estrategia de memoria usarían, con qué números?
 
 \textbf{Respuesta aplicada al proyecto:} \\
+Nuestro proyecto se parece más al \textbf{Caso A} (asignaciones frecuentes y predecibles), aunque en la práctica casi no hay asignaciones dinámicas.
+
+\begin{itemize}
+	\item \textbf{Pico (RP2040, bare-metal):} no usamos heap. Todos los buffers son estáticos y se reservan en tiempo de compilación: el buffer de muestras del $74HC165$ (16 bits por ciclo, muestreado cada $5\text{ ms}$), el reporte USB HID (8 bytes, enviado cada $1\text{ ms}$) y la cola de comandos de actuadores. Así no hay fragmentación ni llamadas a \texttt{malloc} dentro de la interrupción de $5\text{ ms}$, que sería un riesgo para el determinismo.
+	\item \textbf{Pi 4 (Linux embebido):} RetroArch sí hace asignaciones frecuentes, pero predecibles: buffers de video por cuadro a $60\text{ FPS}$ y buffers de red para netplay. Usamos un \textbf{pool de buffers preasignados} (un bloque fijo por cuadro, reciclado en un anillo de 3 elementos, o \textit{triple buffering}), de modo que la asignación ocurre una sola vez al arrancar y no en el camino crítico del cuadro.
+\end{itemize}
+
+\textbf{Números:}
+\begin{itemize}
+	\item \textbf{Memoria del maestro:} 1 GB de RAM, con $120\text{--}150\text{ MB}$ en reposo. Reservamos unos $64\text{ MB}$ para el pool de video (3 cuadros de $\approx 2\text{ MB}$ con holgura) y $8\text{ MB}$ para buffers de red de netplay.
+	\item \textbf{Memoria del esclavo:} $264\text{ KB}$ de SRAM, con $< 15\text{ KB}$ en uso. Queda más del $94\%$ libre como margen para pila y crecimiento futuro, sin asignación dinámica.
+	\item \textbf{Fragmentación:} con bloques de tamaño fijo en el pool, la fragmentación externa es nula, y la asignación es $O(1)$ porque solo se toma el siguiente elemento libre de la lista.
+\end{itemize}
+
+\textbf{¿Por qué no el Caso B?} La única asignación grande y rara sería cargar la ROM al iniciar el juego. Esa sí puede hacerse con \texttt{malloc} normal, porque ocurre fuera de la ventana de $16.6\text{ ms}$ y no afecta el input lag.
 
 \subsection{Clase 11: Comunicación entre Procesos (IPC)}
 
