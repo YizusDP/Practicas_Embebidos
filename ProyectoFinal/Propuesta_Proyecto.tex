@@ -280,6 +280,19 @@ Las tareas de los controles son las más importantes porque definen el \textit{i
 \textbf{Pregunta:} ¿Qué recurso compartido tendría su proyecto entre dos tareas, y qué mecanismo de sincronización usarían para protegerlo?
 
 \textbf{Respuesta aplicada al proyecto:} \\
+Tenemos dos recursos críticos compartidos entre tareas concurrentes:
+
+\begin{enumerate}
+	\item \textbf{En el Pico (RP2040):} El buffer de reporte USB HID es compartido entre Core 0 (que escribe los datos de los botones y el potenciómetro cada $5\text{ ms}$) y Core 1 (que lo lee para enviarlo por USB cada $1\text{ ms}$). Si ambos núcleos acceden simultáneamente, Core 1 podría leer un reporte a medio escribir, causando inputs fantasma.
+
+	      \textbf{Mecanismo:} Usamos un \textbf{mutex de hardware del RP2040}. El SDK del Pico provee 32 mutexes implementados en un registro especial con instrucciones atómicas de test-and-set. Core 0 hace \texttt{mutex\_enter\_blocking()} antes de actualizar el buffer y \texttt{mutex\_exit()} después. Core 1 hace lo mismo antes de leerlo. Como la escritura tarda $< 10\text{ }\mu\text{s}$ (copiar 8 bytes), el bloqueo es despreciable.
+
+	\item \textbf{En la Pi 4 (Linux):} El hilo de emulación de RetroArch escribe los frames de video en el buffer de renderizado, mientras que el hilo de salida HDMI (manejado por el driver de gráficos) lee esos mismos frames para enviarlos al monitor. Sin protección, se vería \textit{tearing} (mitad del cuadro viejo, mitad del nuevo).
+
+	      \textbf{Mecanismo:} Usamos \textbf{double buffering} (o triple buffering) con semáforos POSIX. Hay 3 buffers: uno escribiéndose, uno leyéndose y uno listo. Cada buffer tiene un semáforo que indica su estado (vacío/lleno). Cuando el emulador termina un cuadro, hace \texttt{sem\_post()} en el buffer listo; cuando el hilo de salida necesita un cuadro, hace \texttt{sem\_wait()}. Así nunca se lee y se escribe el mismo buffer al mismo tiempo, sin mutex bloqueantes en el camino crítico.
+\end{enumerate}
+
+\textbf{Cifras:} El overhead del mutex en el Pico es $< 1\text{ }\mu\text{s}$ por adquisición (medido en el SDK). El semáforo POSIX en Linux tiene un overhead de $\approx 2\text{--}3\text{ }\mu\text{s}$ por operación, imperceptible frente a los $16.6\text{ ms}$ del cuadro.
 
 \subsection{Clase 10: Gestión de Memoria en SO embebidos}
 
@@ -307,6 +320,21 @@ Nuestro proyecto se parece más al \textbf{Caso A} (asignaciones frecuentes y pr
 \textbf{Pregunta:} ¿Su proyecto tendría más de un proceso comunicándose? Si es así, ¿qué mecanismo de IPC usarían y por qué?
 
 \textbf{Respuesta aplicada al proyecto:} \\
+Sí, usamos un proceso separado para telemetría que se comunica con RetroArch (proceso principal). El proceso de telemetría lee la RAM del juego y envía comandos a los actuadores del mando.
+
+\textbf{Mecanismo elegido:} \textbf{Sockets UNIX (AF\_UNIX) tipo SOCK\_DGRAM}.
+
+\textbf{Justificación:}
+\begin{itemize}
+	\item \textbf{Bidireccionalidad:} Un solo descriptor de archivo permite enviar telemetría y recibir comandos, simplificando el código frente a pipes que requieren dos canales separados.
+	\item \textbf{Preservación de mensajes:} Los datagramas mantienen límites de mensaje. Cada comando es atómico (ejemplo: \texttt{\{type: "vibrate", duration: 200\}}), sin necesidad de implementar framing propio.
+	\item \textbf{Baja latencia:} Los sockets UNIX evitan la pila TCP/IP completa (checksum, routing, ARP). Latencia medida en Pi 4: $\approx 15\text{--}20\text{ }\mu\text{s}$ vs $\approx 40\text{--}50\text{ }\mu\text{s}$ con TCP localhost.
+	\item \textbf{Overhead mínimo:} Mensajes pequeños ($< 64$ bytes) hacen que el costo de copia ($\approx 2\text{--}3\text{ }\mu\text{s}$) sea despreciable frente a los $16.6\text{ ms}$ del cuadro.
+\end{itemize}
+
+\textbf{Flujo:} RetroArch expone \texttt{/tmp/retroarch\_telemetry.sock} $\rightarrow$ Script de telemetría se conecta $\rightarrow$ Cada $16.6\text{ ms}$ (vsync) RetroArch envía estado del juego $\rightarrow$ Script procesa y envía comandos al Pico vía \texttt{/dev/ttyACM0} (USB Serial).
+
+\textbf{Cifras:} $\approx 32$ bytes/mensaje, $60\text{ Hz}$, $\approx 2\text{ KB/s}$ throughput, $< 20\text{ }\mu\text{s}$ latencia.
 
 
 \subsection{Clase 12: Kernel, syscalls y drivers}
