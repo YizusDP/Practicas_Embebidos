@@ -221,6 +221,14 @@ El diagrama muestra claramente los sensores, actuadores, procesadores, buses de 
 \textbf{Pregunta:} ¿Qué categoría de SO embebido usarían para su proyecto — bare-metal, RTOS o Linux embebido — y por qué?
 
 \textbf{Respuesta aplicada al proyecto:} \\
+Nuestro proyecto no cabe en una sola categoría, así que usamos una arquitectura híbrida: \textit{bare-metal} en el mando (Raspberry Pi Pico) y Linux embebido en la consola (Raspberry Pi 4).
+
+\begin{itemize}
+	\item \textbf{Mando (bare-metal):} sus tareas son pocas y fijas: leer los botones del $74HC165$ cada $5\text{ ms}$, leer el potenciómetro, mandar el reporte USB HID y mover los actuadores. Para eso no necesitamos un planificador. Un temporizador por hardware nos da el muestreo exacto a $200\text{ Hz}$, y sin SO el programa ocupa menos de $15\text{ KB}$ de los $264\text{ KB}$ de SRAM. Un RTOS solo agregaría complejidad sin ganar nada: con dos núcleos ya separamos la E/S (Core 0) de la pila USB (Core 1).
+	\item \textbf{Consola (Linux embebido):} RetroArch necesita cosas que solo un SO completo nos da: drivers de USB HID, HDMI y audio, sistema de archivos para las ROMs y la pila TCP/IP para el multijugador en LAN. Aquí el tiempo real es blando: si un cuadro de $16.6\text{ ms}$ llega tarde, el juego se ve un tirón, pero nada se rompe. Por eso no hace falta un RTOS ni parches PREEMPT\_RT.
+\end{itemize}
+
+En resumen, la parte que sí necesita determinismo (leer los controles) vive en el microcontrolador sin SO, y la parte que necesita red y multimedia vive en Linux.
 
 
 \subsection{Clase 8: Planificación (scheduling)}
@@ -228,6 +236,43 @@ El diagrama muestra claramente los sensores, actuadores, procesadores, buses de 
 \textbf{Pregunta:} ¿Qué tareas tendría su proyecto, y qué prioridad relativa le darían a cada una? ¿Alguna necesita planificación preemptiva sí o sí?
 
 \textbf{Respuesta aplicada al proyecto:} \\
+Separamos las tareas por nodo y les asignamos prioridad según qué tan grave es que lleguen tarde (Tabla \ref{tab:tareas_prio}).
+
+\begin{table}[H]
+	\centering
+	\caption{Tareas del sistema y su prioridad}
+	\label{tab:tareas_prio}
+	\small
+	\begin{tabular}{|p{0.9cm}|p{3.3cm}|p{1.2cm}|p{1.1cm}|}
+		\hline
+		\textbf{Nodo} & \textbf{Tarea} & \textbf{Periodo} & \textbf{Prioridad} \\
+		\hline
+		\multirow{4}{*}{Pico} & Leer botones ($74HC165$ por SPI) & $5\text{ ms}$ & Alta \\
+		\cline{2-4}
+		& Enviar reporte USB HID & $1\text{ ms}$ & Alta \\
+		\cline{2-4}
+		& Leer potenciómetro (ADC) & $10\text{ ms}$ & Media \\
+		\cline{2-4}
+		& Actuadores (vibración, LEDs, buzzer) & Por evento & Baja \\
+		\hline
+		\multirow{4}{*}{Pi 4} & Emulación y render (RetroArch) & $16.6\text{ ms}$ & Alta \\
+		\cline{2-4}
+		& Telemetría (leer RAM del juego) & $16.6\text{ ms}$ & Media \\
+		\cline{2-4}
+		& Netplay en LAN & Por evento & Media \\
+		\cline{2-4}
+		& Servicios del sistema y logs & -- & Baja \\
+		\hline
+	\end{tabular}
+\end{table}
+
+Las tareas de los controles son las más importantes porque definen el \textit{input lag}. Leer los 16 bits de los dos $74HC165$ a $1\text{ MHz}$ tarda unos $16\text{ }\mu\text{s}$, o sea apenas $16\text{ }\mu\text{s} / 5\text{ ms} \approx 0.3\%$ del tiempo del Core 0, así que cumplir el periodo sobra si nada la bloquea. Los actuadores van al final porque tienen hasta $50\text{ ms}$ de margen.
+
+\textbf{¿Necesita preempción?} Sí, en los dos nodos:
+\begin{itemize}
+	\item \textbf{En la Pico}, aunque no hay SO, la lectura de botones se dispara con una interrupción de temporizador cada $5\text{ ms}$. Esa interrupción le quita el procesador al lazo principal en cuanto llega su tiempo. Si fuera cooperativo y el código de los actuadores o de USB se tardara, podríamos saltarnos un muestreo.
+	\item \textbf{En la Pi 4}, la telemetría, la red y los servicios comparten los 4 núcleos con la emulación. Con el planificador CFS de Linux (preemptivo) y dándole a RetroArch un \textit{nice} más bajo que al script de telemetría, aseguramos que una lectura de memoria o un paquete de red nunca bloquee el cuadro de $16.6\text{ ms}$.
+\end{itemize}
 
 
 \subsection{Clase 9: Sincronización}
