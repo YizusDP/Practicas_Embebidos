@@ -647,7 +647,7 @@ Por ello, el diseño debe encontrar un equilibrio entre eficiencia y capacidad d
 \vspace{0.35cm}
 
 \textbf{Domínguez Palacios Jesús Alejandro}.\\
-\textit{[Pendiente: agregar conclusión individual de 5 a 8 líneas.]}
+Esta práctica me permitió ver que un sistema embebido funcional depende tanto de decisiones de implementación como del hardware. Representar la temperatura en centésimas de grado y usar un acumulador de 64 bits permitió hacer los cálculos con aritmética entera, sin perder precisión ni arriesgar desbordamientos. Validar la lógica con las 43 pruebas antes de conectar el circuito ayudó a separar los errores de código de los problemas físicos, como la falta de respuesta del BMP280 en la dirección 0x76. Las mediciones de CPU me dejaron claro que un experimento de eficiencia necesita condiciones controladas y una relación clara entre cada medición y su configuración para sacar conclusiones válidas. Por último, entendí que elegir cuándo sincronizar con \texttt{fsync()} o cada cuánto muestrear es un compromiso entre confiabilidad, desgaste de la microSD y consumo de recursos.
 
 \vspace{0.35cm}
 
