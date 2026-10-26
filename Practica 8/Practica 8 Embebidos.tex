@@ -662,7 +662,7 @@ Con esta práctica pude ver cómo se integran en una sola aplicación la lógica
 \vspace{0.35cm}
 
 \textbf{Hernández Alonso Antonio Adonahí}.\\
-\textit{[Pendiente: agregar conclusión individual de 5 a 8 líneas.]}
+Esta práctica integró todos los conceptos de las prácticas anteriores en una aplicación funcional completa. Implementar la máquina de estados con histéresis demostró cómo evitar transiciones inestables cuando las mediciones oscilan cerca del umbral, un problema común en sistemas de control real. Lograr 43 de 43 pruebas automáticas validó que la lógica estaba correcta antes de probarla en hardware, lo cual permitió identificar que los problemas de comunicación con el BMP280 eran por configuración física y no por errores de código. Usar aritmética entera con centésimas de grado eliminó la necesidad de punto flotante y previno errores de redondeo. El manejo de archivos con fsync() balanceó la confiabilidad de los datos contra el desgaste de la tarjeta SD. Las mediciones de CPU mostraron que reducir la frecuencia de muestreo disminuye la carga del procesador, aunque sin identificadores claros en cada medición fue difícil correlacionar resultados con configuraciones específicas. Finalmente, esta práctica consolidó la capacidad de desarrollar sistemas embebidos que integran sensores, actuadores, control de estados y persistencia de datos de manera robusta.
 
 \vspace{0.35cm}
 
