@@ -642,8 +642,11 @@ Por ello, el diseño debe encontrar un equilibrio entre eficiencia y capacidad d
 % de 5 a 8 líneas, de acuerdo con la guía del profesor.
 
 \textbf{Belmont Muñoz Samuel}.\\
-\textit{[Pendiente: agregar conclusión individual de 5 a 8 líneas.]}
+En cuanto al cumplimiento de los objetivos de la práctica, se logró desarrollar e implementar de forma exitosa la aplicación de alarma térmica Centinela en la Raspberry Pi 4 utilizando el lenguaje C. Se integró el sensor BMP280, el convertidor MCP3008, los botones y los LEDs dentro de una arquitectura de software funcional. Asimismo, se implementó correctamente el cálculo de la temperatura base, el umbral mediante potenciómetro, la barra de LEDs y la máquina de estados finitos.
 
+Se superó la totalidad de las 43 pruebas automáticas establecidas en el kit, lo que corroboró la precisión y robustez de la lógica programada. Se comprobó el comportamiento del sistema en los estados de vigilancia, alarma y pausa, destacando el uso de la histéresis para mantener la estabilidad ante variaciones térmicas. De igual manera, se registró de forma estructurada cada medición y transición de estado en un archivo CSV, asegurando la trazabilidad de los datos.
+
+Se evaluó el tiempo de CPU consumido por el programa mediante diferentes periodos de muestreo, lo que facilitó el análisis de la relación entre la frecuencia de lectura, la respuesta del sistema y el consumo de recursos. Se concluyó que un ajuste adecuado de los tiempos de muestreo permite optimizar el rendimiento del sistema embebido sin afectar su operación.
 \vspace{0.35cm}
 
 \textbf{Domínguez Palacios Jesús Alejandro}.\\
