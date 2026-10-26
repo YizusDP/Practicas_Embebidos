@@ -657,7 +657,7 @@ Por ello, el diseño debe encontrar un equilibrio entre eficiencia y capacidad d
 \vspace{0.35cm}
 
 \textbf{García Olvera Emiliano}.\\
-\textit{[Pendiente: agregar conclusión individual de 5 a 8 líneas.]}
+Con esta práctica pude ver cómo se integran en una sola aplicación la lógica de control, los periféricos y el registro de datos. Pasar de 7 a 43 de 43 pruebas automáticas me mostró lo útil que es validar las funciones de cálculo y transición de estados antes de conectarlas al circuito. La histéresis de 0.30\,$^{\circ}$C resultó clave para que la alarma no cambiara de estado por pequeñas variaciones del sensor cerca del umbral. En hardware, las fallas intermitentes de lectura del BMP280 y la ausencia de respuesta en la dirección 0x76 me recordaron que un programa con lógica correcta también depende de la comunicación con los dispositivos, y que debe manejar errores sin detenerse. Las mediciones de CPU mostraron que los periodos de muestreo influyen en la carga del procesador, aunque para concluir con precisión haría falta repetirlas en condiciones controladas e identificar cada medición con su configuración. Finalmente, entendí que \texttt{fsync()} y el uso de esperas bloqueantes como \texttt{usleep()} son decisiones de diseño que equilibran la confiabilidad de los datos, la eficiencia y la capacidad de respuesta del sistema.
 
 \vspace{0.35cm}
 
