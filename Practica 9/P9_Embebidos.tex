@@ -100,9 +100,6 @@
 	Depuración, gdb, gdbserver, VS Code, breakpoints, watchpoints, Raspberry Pi, sistemas embebidos
 \end{IEEEkeywords}
 
-% ---------------------------------------------------------
-% SECCIÓN I: OBJETIVO (Debe ir antes de la Introducción)
-% ---------------------------------------------------------
 \section{Objetivo}
 
 \subsection{Objetivo General}
@@ -118,9 +115,6 @@ Depurar con \texttt{gdb}, VS Code y \texttt{gdbserver} programas en C que corren
 	\item Conectar \texttt{gdb} a un programa a través de \texttt{gdbserver}.
 \end{itemize}
 
-% ---------------------------------------------------------
-% SECCIÓN II: INTRODUCCIÓN
-% ---------------------------------------------------------
 \section{Introducción}
 
 En el desarrollo de software para sistemas embebidos, el código interactúa directamente con el hardware, por lo que los errores pueden tener consecuencias físicas o dejar el sistema en un estado inoperable. La depuración (\textit{debugging}) es el proceso de identificar, aislar y corregir defectos en el software.
@@ -135,31 +129,28 @@ En el desarrollo de software para sistemas embebidos, el código interactúa dir
 \subsection{Conceptos Clave: Breakpoints y Watchpoints}
 Un \textit{breakpoint} (punto de interrupción) detiene la ejecución del programa en una línea específica o al entrar a una función. Los \textit{breakpoints} condicionales solo detienen el programa si se cumple una expresión lógica. Por otro lado, un \textit{watchpoint} (punto de vigilancia) no se coloca en una línea de código, sino sobre una variable; el programa se detendrá automáticamente en el instante exacto en que el valor de esa variable cambie en memoria, lo cual es invaluable para detectar corrupciones silenciosas.
 
-% ---------------------------------------------------------
-% SECCIÓN III: DESARROLLO
-% ---------------------------------------------------------
 \section{Desarrollo}
 
 \subsection{Parte A. Entorno y conexión}
 Se verificó la arquitectura del sistema operativo (aarch64), así como las versiones de \texttt{gdb} (16.3) y \texttt{gdbserver} (16.3) instaladas en la Raspberry Pi. Se configuró el archivo \texttt{\textasciitilde/.gdbinit} para evitar la pregunta sobre \texttt{debuginfod} (Figura~\ref{fig:a1}). Posteriormente, se descomprimió el kit de trabajo (\texttt{FSE\_P09\_kit.zip}), se compiló con \texttt{make} y se abrió la carpeta remota \texttt{p09} desde una laptop mediante la extensión Remote-SSH de VS Code (Figuras~\ref{fig:a2} y \ref{fig:a3}).
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{A_01_herramientas_versiones.png}
+	\includegraphics[width=\columnwidth]{A_01_herramientas_versiones.png}
 	\caption{Verificación de arquitectura, versiones de gdb/gdbserver y configuración de \texttt{.gdbinit}.}
 	\label{fig:a1}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{A_02_unzip_make_ls.png}
+	\includegraphics[width=\columnwidth]{A_02_unzip_make_ls.png}
 	\caption{Descompresión del kit, compilación con \texttt{make} y visualización de archivos generados.}
 	\label{fig:a2}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[height=7cm, keepaspectratio]{A_03_vscode_remote_ssh_p09.png}
+	\includegraphics[width=0.75\columnwidth]{A_03_vscode_remote_ssh_p09.png}
 	\caption{Conexión remota a la Raspberry Pi mediante VS Code y Remote-SSH.}
 	\label{fig:a3}
 \end{figure}
@@ -167,51 +158,51 @@ Se verificó la arquitectura del sistema operativo (aarch64), así como las vers
 \subsection{Parte B. gdb en terminal}
 Se depuró el programa \texttt{estadistica} para comprender el control de flujo. Se colocaron \textit{breakpoints} en la función \texttt{promedio}, se inspeccionó la pila con \texttt{bt} y los argumentos con \texttt{info args} (Figura~\ref{fig:b1}). Se probó la diferencia entre \texttt{next} y \texttt{step}. Al usar \texttt{finish}, el depurador terminó la ejecución de la función y devolvió el valor calculado (Figura~\ref{fig:b2}). Finalmente, se examinó el arreglo en memoria (Figura~\ref{fig:b3}), se usó \texttt{display total} (Figura~\ref{fig:b4}) y se colocó un \textit{watchpoint} en la variable \texttt{total} para detenerse cada vez que su valor cambiara (Figura~\ref{fig:b5}). También se utilizó la interfaz TUI de gdb para visualizar el código fuente (Figuras~\ref{fig:b6} y \ref{fig:b7}).
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{B_01_break_promedio_bt_info_args.png}
+	\includegraphics[width=\columnwidth]{B_01_break_promedio_bt_info_args.png}
 	\caption{Breakpoint en promedio, pila de llamadas (\texttt{bt}) y argumentos (\texttt{info args}).}
 	\label{fig:b1}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{B_02_next_step_finish.png}
+	\includegraphics[width=\columnwidth]{B_02_next_step_finish.png}
 	\caption{Uso de \texttt{step} y \texttt{finish} para entrar y salir de la función \texttt{suma}.}
 	\label{fig:b2}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{B_03_print_x_arreglo.png}
+	\includegraphics[width=\columnwidth]{B_03_print_x_arreglo.png}
 	\caption{Inspección del arreglo en memoria con \texttt{print *v@8} y \texttt{x/8dw v}.}
 	\label{fig:b3}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{B_04_display_total.png}
+	\includegraphics[width=\columnwidth]{B_04_display_total.png}
 	\caption{Comando \texttt{display total} y avance paso a paso observando los cambios de la variable.}
 	\label{fig:b4}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{B_05_watch_total.png}
+	\includegraphics[width=\columnwidth]{B_05_watch_total.png}
 	\caption{Detenciones del watchpoint sobre la variable \texttt{total}.}
 	\label{fig:b5}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{B_06_tui_suma.png}
+	\includegraphics[width=\columnwidth]{B_06_tui_suma.png}
 	\caption{Interfaz TUI de gdb mostrando la función \texttt{suma}.}
 	\label{fig:b6}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{B_07_tui_main.png}
+	\includegraphics[width=\columnwidth]{B_07_tui_main.png}
 	\caption{Interfaz TUI de gdb mostrando la función \texttt{main}.}
 	\label{fig:b7}
 \end{figure}
@@ -219,58 +210,58 @@ Se depuró el programa \texttt{estadistica} para comprender el control de flujo.
 \subsection{Parte C. Depurar el Centinela con el circuito}
 Se compiló una copia para depurar (\texttt{centinela\_dbg}) y se utilizó \texttt{gdb} para forzar estados sin tocar el hardware. Se inspeccionaron los argumentos y la pila (Figura~\ref{fig:c1}). Utilizando \texttt{set var temp\_c100 = 3500}, se forzó la condición de alarma (Figura~\ref{fig:c2}) y se observó el comportamiento de los LEDs en la placa (Figura~\ref{fig:c3}). Se colocó un \textit{breakpoint} condicional para detenerse solo cuando el estado fuera \texttt{ALARMA} (Figura~\ref{fig:c4}). Se monitoreó el potenciómetro en sus límites (Figura~\ref{fig:c5}) y, mediante \texttt{watch estado}, se rastreó el cambio de estado global del Centinela a lo largo de la ejecución (Figuras~\ref{fig:c6} a \ref{fig:c8}).
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{C_01_info_args_bt_finish.png}
+	\includegraphics[width=\columnwidth]{C_01_info_args_bt_finish.png}
 	\caption{Inspección de argumentos y pila en el Centinela.}
 	\label{fig:c1}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{C_02_set_var_alarma.png}
+	\includegraphics[width=\columnwidth]{C_02_set_var_alarma.png}
 	\caption{Modificación de la temperatura con \texttt{set var} para forzar el estado ALARMA.}
 	\label{fig:c2}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.8\columnwidth]{C_03_circuito_led_alarma.jpg}
+	\includegraphics[width=\columnwidth]{C_03_circuito_led_alarma.jpg}
 	\caption{Circuito físico de la Raspberry Pi mostrando el estado de alarma con los LEDs encendidos.}
 	\label{fig:c3}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{C_04_break_condicional_alarma.png}
+	\includegraphics[width=\columnwidth]{C_04_break_condicional_alarma.png}
 	\caption{Creación de un breakpoint condicional (\texttt{actual == ALARMA}).}
 	\label{fig:c4}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{C_05_potenciometro_min_max.png}
+	\includegraphics[width=\columnwidth]{C_05_potenciometro_min_max.png}
 	\caption{Breakpoint en \texttt{umbral\_desde\_pot} con el potenciómetro en mínimo y máximo.}
 	\label{fig:c5}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{C_06_watch_estado_preparacion.png}
+	\includegraphics[width=\columnwidth]{C_06_watch_estado_preparacion.png}
 	\caption{Preparación del watchpoint en la variable de estado.}
 	\label{fig:c6}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{C_07_watch_estado_parada1.png}
+	\includegraphics[width=\columnwidth]{C_07_watch_estado_parada1.png}
 	\caption{Primera detención del watchpoint mostrando el cambio de estado.}
 	\label{fig:c7}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{C_08_watch_estado_parada2.png}
+	\includegraphics[width=\columnwidth]{C_08_watch_estado_parada2.png}
 	\caption{Segunda detención del watchpoint mostrando el cambio de estado.}
 	\label{fig:c8}
 \end{figure}
@@ -283,23 +274,23 @@ Se analizaron los tres programas proporcionados en el kit:
 	\item \textbf{f3\_corrupcion}: La variable \texttt{cfg.umbral} cambia a un valor gigante. Usando un \textit{watchpoint} en \texttt{cfg.umbral}, \texttt{gdb} detiene la ejecución dentro de la función \texttt{strcpy} (Figura~\ref{fig:d3}). \textbf{Corrección}: La cadena \texttt{nombre} sobreescribe el límite del arreglo \texttt{etiqueta}, corrompiendo el campo contiguo \texttt{umbral}. Se debe usar \texttt{strncpy} o limitar el tamaño de la copia.
 \end{itemize}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{D_01_f1_nulo.png}
+	\includegraphics[width=\columnwidth]{D_01_f1_nulo.png}
 	\caption{Diagnóstico de \texttt{f1\_nulo}: Segmentation fault por puntero NULL.}
 	\label{fig:d1}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{D_02_f2_bucle.png}
+	\includegraphics[width=\columnwidth]{D_02_f2_bucle.png}
 	\caption{Diagnóstico de \texttt{f2\_bucle}: interrupción manual y backtrace en el ciclo infinito.}
 	\label{fig:d2}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{D_03_f3_corrupcion.png}
+	\includegraphics[width=\columnwidth]{D_03_f3_corrupcion.png}
 	\caption{Diagnóstico de \texttt{f3\_corrupcion}: el watchpoint revela el desbordamiento en \texttt{strcpy}.}
 	\label{fig:d3}
 \end{figure}
@@ -307,30 +298,30 @@ Se analizaron los tres programas proporcionados en el kit:
 \subsection{Parte E. VS Code}
 Se configuró el entorno gráfico instalando la extensión C/C++ de Microsoft en la Raspberry Pi. Se crearon los archivos \texttt{tasks.json} (para compilar con \texttt{make}) y \texttt{launch.json} (para lanzar \texttt{gdb}). Desde la interfaz, se colocaron \textit{breakpoints} y se avanzó con F10/F11 observando los paneles de Variables y Call Stack (Figuras~\ref{fig:e1} a \ref{fig:e4}).
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{E_01_debug_console_f5.png}
+	\includegraphics[width=\columnwidth]{E_01_debug_console_f5.png}
 	\caption{Consola de depuración de VS Code tras iniciar con F5.}
 	\label{fig:e1}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{E_02_detenido_linea19.png}
+	\includegraphics[width=\columnwidth]{E_02_detenido_linea19.png}
 	\caption{Programa detenido en la línea 19 desde la interfaz de VS Code.}
 	\label{fig:e2}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{E_03_variables_callstack.png}
+	\includegraphics[width=\columnwidth]{E_03_variables_callstack.png}
 	\caption{Paneles de Variables y Call Stack en VS Code.}
 	\label{fig:e3}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{E_04_variables_locals.png}
+	\includegraphics[width=\columnwidth]{E_04_variables_locals.png}
 	\caption{Inspección de variables locales en el depurador de VS Code.}
 	\label{fig:e4}
 \end{figure}
@@ -338,9 +329,9 @@ Se configuró el entorno gráfico instalando la extensión C/C++ de Microsoft en
 \subsection{Parte F. gdbserver}
 Se abrieron dos sesiones SSH. En la primera se lanzó el programa con \texttt{gdbserver localhost:2345 ./centinela\_dbg}. En la segunda se abrió \texttt{gdb ./centinela\_dbg} y se conectó usando \texttt{target remote localhost:2345} (Figura~\ref{fig:f1}). Se comprobó que los comandos se ejecutan en la segunda terminal, mientras que la salida del programa y los mensajes de hardware aparecen en la primera.
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{F_01_gdbserver_dos_terminales.png}
+	\includegraphics[width=\columnwidth]{F_01_gdbserver_dos_terminales.png}
 	\caption{Conexión remota con \texttt{gdbserver} y depuración desde otra terminal SSH.}
 	\label{fig:f1}
 \end{figure}
@@ -354,51 +345,48 @@ Se analizó el programa \texttt{averiado.c}, el cual presentaba fallos en su ló
 \end{enumerate}
 La versión corregida (\texttt{averiado\_corregido.c}) se ejecutó exitosamente sin errores, comparando su salida con la original (Figura~\ref{fig:g5}) y mostrando el código final corregido (Figura~\ref{fig:g6}).
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{G_01_averiado_original_segfault.png}
+	\includegraphics[width=\columnwidth]{G_01_averiado_original_segfault.png}
 	\caption{Ejecución de \texttt{averiado.c} mostrando el Segmentation fault.}
 	\label{fig:g1}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{G_02_defecto1_ventana.png}
+	\includegraphics[width=\columnwidth]{G_02_defecto1_ventana.png}
 	\caption{Backtrace (\texttt{bt}) mostrando el fallo en \texttt{strcpy} por puntero nulo (Defecto 1).}
 	\label{fig:g2}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{G_03_defecto2_nombre_falla.png}
+	\includegraphics[width=\columnwidth]{G_03_defecto2_nombre_falla.png}
 	\caption{Análisis del índice del búfer circular (Defecto 2).}
 	\label{fig:g3}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{G_04_defecto3_histeresis.png}
+	\includegraphics[width=\columnwidth]{G_04_defecto3_histeresis.png}
 	\caption{Depuración de la lógica de histéresis (Defecto 3).}
 	\label{fig:g4}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{G_05_corregido_salida_diff.png}
+	\includegraphics[width=\columnwidth]{G_05_corregido_salida_diff.png}
 	\caption{Comparación (\texttt{diff}) de los cambios y ejecución exitosa de \texttt{averiado\_corregido.c}.}
 	\label{fig:g5}
 \end{figure}
 
-\begin{figure}[!ht]
+\begin{figure}[H]
 	\centering
-	\includegraphics[width=0.9\columnwidth]{G_06_averiado_corregido_codigo.png}
+	\includegraphics[width=\columnwidth]{G_06_averiado_corregido_codigo.png}
 	\caption{Código de \texttt{averiado\_corregido.c} en VS Code mostrando las correcciones.}
 	\label{fig:g6}
 \end{figure}
 
-% ---------------------------------------------------------
-% SECCIÓN IV: RESULTADOS Y ANÁLISIS
-% ---------------------------------------------------------
 \section{Resultados y Análisis}
 
 \subsection{Preguntas Parte B (gdb en terminal)}
@@ -417,9 +405,6 @@ Un \textit{logpoint} es ideal cuando se necesita monitorear el comportamiento de
 \textbf{¿Qué pasos adicionales exige compilar en la laptop y depurar en la Pi, y por qué se usa \texttt{gdbserver} en sistemas con pocos recursos?} \\
 Requiere compilar con una herramienta de compilación cruzada (\textit{cross-compiler}) en la laptop, transferir el binario a la Pi y asegurarse de que las bibliotecas compartidas coincidan. Se usa \texttt{gdbserver} porque consume mucha menos memoria y CPU en el sistema objetivo en comparación con ejecutar el \texttt{gdb} completo. Además, permite aprovechar la interfaz gráfica o el mayor poder de procesamiento de una computadora host.
 
-% ---------------------------------------------------------
-% SECCIÓN V: CÓDIGO Y REPOSITORIO
-% ---------------------------------------------------------
 \section{Código Fuente y Repositorio}
 Como evidencia del desarrollo y para cumplir con los entregables solicitados, todo el código fuente de esta práctica, incluyendo los archivos de configuración de VS Code (\texttt{launch.json} y \texttt{tasks.json}) y la versión corregida del reto, se encuentra alojado en el repositorio oficial del equipo:
 
@@ -442,9 +427,6 @@ if (actual == ALARMA) {
 }
 \end{lstlisting}
 
-% ---------------------------------------------------------
-% SECCIÓN VI: CONCLUSIONES
-% ---------------------------------------------------------
 \section{Conclusiones}
 
 \textbf{Belmont Muñoz Samuel.} \\
@@ -454,7 +436,7 @@ Esta práctica demostró la importancia del uso del depurador en el desarrollo e
 Comprendí que el comportamiento del hardware y el software están desacoplados durante la depuración. Al pausar el Centinela, los LEDs se quedan en su último estado, ignorando los cambios ambientales. El uso de \texttt{gdbserver} me pareció una herramienta fundamental para entornos reales donde el dispositivo puede no tener monitor ni teclado. Encontrar la corrupción de memoria en \texttt{f3\_corrupcion} con un \textit{watchpoint} fue el momento clave de la práctica, demostrando por qué la validación de tamaños es crucial.
 
 \textbf{Dorantes Mejía Emmanuel.} \\
-Esta práctica me ayudó a entender que la depuración no es solo buscar errores de sintaxis, sino analizar el estado del programa en tiempo real. Herramientas como los \textit{watchpoints} en \texttt{gdb} fueron clave para encontrar la corrupción de memoria en \texttt{f3\_corrupcion}, un error que a simple vista parecía que la variable cambiaba sola. Además, compilar con la bandera \texttt{-O0} me demostró que el compilador puede ocultar información valiosa si intentamos depurar código optimizado.
+Esta práctica me ayudó a entender que la depuración no es solo buscar errores de sintaxis, sino analizar el estado del programa en tiempo real. Herramientas como los \textit{watchpoints} en \texttt{gdb} fueron clave para encontrar la corrupción de memoria en \texttt{f3\_corrupcion}, un error que a simple vista parecía que la variable cambiaba sola. Además, compilar con la bandera \texttt{-O0} me demostró que el compilador puede ocultar información valiosa si intentamos depurar código optimizado. 
 
 \textbf{García Olvera Emiliano.} \\
 El uso de VS Code con Remote-SSH facilitó enormemente el proceso de depuración en la Raspberry Pi, haciendo que el análisis gráfico de variables y la pila de llamadas fuera mucho más intuitivo que en la terminal pura. Aprendí a configurar las tareas de compilación en \texttt{tasks.json} y la ejecución en \texttt{launch.json}. Por otro lado, el reto de \texttt{averiado.c} demostró que los errores lógicos, como el cálculo incorrecto de la histéresis o los índices del búfer circular, son tan críticos como los errores de memoria y requieren un análisis cuidadoso de las condiciones del código.
@@ -465,9 +447,6 @@ El depurador es una herramienta que ahorra horas de trabajo. En esta práctica l
 \textbf{Jiménez Reyes Alan Yael.} \\
 A través de esta práctica logré identificar fallos complejos que a simple vista parecían errores lógicos simples. El error de segmentación de \texttt{f1\_nulo} y la corrupción por \texttt{strcpy} en \texttt{f3\_corrupcion} demuestran la fragilidad de C cuando no se validan los punteros y los límites de los arreglos. Aprender a configurar VS Code con \texttt{tasks.json} y \texttt{launch.json} me facilitará enormemente el desarrollo en proyectos futuros, automatizando la compilación y la depuración en la Raspberry Pi.
 
-% ---------------------------------------------------------
-% DECLARACIÓN DE IA Y REFERENCIAS
-% ---------------------------------------------------------
 \section*{Declaración de Uso de Inteligencia Artificial}
 Se utilizó Claude (Anthropic) como herramienta de apoyo para la estructuración del reporte en LaTeX y la revisión de la redacción técnica. El equipo revisó, ejecutó, validó y analizó de forma independiente cada una de las herramientas de depuración (gdb, gdbserver y VS Code), así como los resultados obtenidos en la Raspberry Pi presentados en este documento.
 
@@ -477,7 +456,7 @@ Se utilizó Claude (Anthropic) como herramienta de apoyo para la estructuración
 	\bibitem{vscode_cpp} Microsoft. (2024). ``Debugging C++ in Visual Studio Code''. Disponible en: https://code.visualstudio.com/docs/cpp/cpp-debug
 	\bibitem{barr} Barr, M. y Massa, A. (2006). \textit{Programming Embedded Systems}, 2.ª ed. O'Reilly.
 	\bibitem{kernighan} Kernighan, B. W. y Ritchie, D. M. (1988). \textit{The C Programming Language}, 2.ª ed. Prentice Hall.
-    \bibitem Anthropic. (2026). “Claude”. Disponible en: https://claude.ai
+    \bibitem{claude} Anthropic. (2026). ``Claude''. Disponible en: https://claude.ai
 \end{thebibliography}
 
 \end{document}
