@@ -1,0 +1,8 @@
+dtparam=spi=on
+dtparam=spi=on
+dtoverlay=mipi-dbi-spi,spi0-0,speed=50000000
+dtparam=compatible=st7796s\0panel-mipi-dbi-spi
+dtparam=width=480,height=320,width-mm=74,height-mm=50
+dtparam=reset-gpio=24,dc-gpio=25
+dtparam=write-only
+core_freq_min=500
