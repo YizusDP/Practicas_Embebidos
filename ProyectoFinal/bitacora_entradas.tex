@@ -1,0 +1,110 @@
+% Entradas de la bitácora para el Avance 2.
+% Se pegan en Propuesta_Proyecto.tex después de la Clase 12, o se compilan con
+% bitacora_avance2.tex.
+
+\subsection{Clase 15: Almacenamiento de archivos}
+
+\textbf{Pregunta:} ¿Qué datos de su proyecto deben sobrevivir a un corte de energía? ¿En qué partición y sistema de archivos viven, y cuánto tiempo de datos pierde su sistema si la alimentación se interrumpe?
+
+\textbf{Respuesta aplicada al proyecto:} \\
+El mando casi no guarda nada: el firmware ocupa $41.7\text{ KB}$ de los $2\text{ MB}$ de Flash ($2.0\%$) y no tiene sistema de archivos. Toda la configuración son constantes que se fijan al compilar.
+
+En la consola, lo delicado es la microSD. Las ROMs y el sistema casi solo se leen, pero la telemetría sí podría escribir mucho si la guardáramos. Con los números de la Clase 11:
+\begin{itemize}
+	\item $32\text{ B} \times 60\text{ Hz} = 1{,}920\text{ B/s}$, que llena un bloque de $4{,}096\text{ B}$ de ext4 cada $2.1\text{ s}$.
+	\item En una hora son $6.9\text{ MB}$, o sea $1{,}688$ bloques.
+	\item Con un \texttt{fsync} por mensaje serían $216{,}000$ escrituras forzadas por hora. Con uno por minuto serían $60$, que es $3{,}600$ veces menos.
+\end{itemize}
+
+\textbf{Decisión:} la telemetría no va a la microSD. Vive en \texttt{/tmp}, que en nuestra Pi es \texttt{tmpfs} (RAM), y los puntajes se guardan solo al terminar la partida. El sistema está en \texttt{/dev/mmcblk0p2} con ext4. Como un arcade se desconecta de golpe, para la versión final queremos montar la raíz en solo lectura.
+
+\subsection{Clase 16: Administración de energía}
+
+\textbf{Pregunta:} ¿Cuánto tiempo debe funcionar su sistema sin alimentación externa? ¿Qué estados de energía puede usar y en qué momento haría un apagado controlado?
+
+\textbf{Respuesta aplicada al proyecto:} \\
+El arcade va conectado a la pared, así que la batería no es nuestro problema. Lo que importa es no perder cuadros y no dañar la microSD.
+
+\textbf{Medido en nuestra Pi 4 (Rev 1.5):} frecuencia de $600$ a $1{,}800\text{ MHz}$, gobernador original \texttt{ondemand}, arranque de $21.7\text{ s}$ y \texttt{get\_throttled} en \texttt{0x0} durante las pruebas.
+
+\textbf{Estimado, todavía sin medir:} con $4\text{ W}$ de la Pi activa (el dato de la práctica de la materia), unos $0.13\text{ W}$ del mando ($5\text{ V} \times 25\text{ mA}$) y unos $0.5\text{ W}$ de la pantalla, serían $4.6\text{ W}$. En una fuente de $5\text{ V}$ a $3\text{ A}$ ($15\text{ W}$) eso es el $31\%$.
+
+\textbf{Decisiones:}
+\begin{itemize}
+	\item Entre partidas la consola se queda en inactivo, porque apagarla costaría $21.7\text{ s}$ en cada arranque.
+	\item Dejamos \texttt{ondemand}. Si medimos cuadros perdidos, pasamos a \texttt{performance}, porque en la pared esa energía extra no importa.
+	\item En la Pico, Core 1 duerme con \texttt{\_\_wfi()} entre muestras. La captura ocupa $10.2\text{ }\mu\text{s}$ de cada $5{,}000\text{ }\mu\text{s}$, o sea el $0.2\%$ del tiempo.
+\end{itemize}
+
+\subsection{Clase 17: Linux embebido}
+
+\textbf{Pregunta:} ¿Su proyecto necesita Linux?
+
+\textbf{Respuesta aplicada al proyecto:} \\
+La consola sí y el mando no.
+
+\begin{itemize}
+	\item \textbf{Consola:} la Pi 4 tiene MMU y $1\text{ GB}$ de RAM. RetroArch necesita gráficos, audio, USB y sistema de archivos, y Linux ya trae esos controladores. Usamos Raspberry Pi OS Lite porque es un prototipo y nos conviene instalar todo con \texttt{apt}. En una producción en serie haríamos una imagen propia con Buildroot.
+	\item \textbf{Mando:} el RP2040 es un Cortex-M0+ sin MMU y con $264\text{ KB}$ de RAM. Linux estándar no cabe ahí. Además, solo necesita leer botones y mandarlos por USB.
+\end{itemize}
+
+Al arrancar, un servicio de \texttt{systemd} lanzará RetroArch sin intervención. Ese servicio se hará en el Avance 3.
+
+\subsection{Clase 18: Elección del sistema operativo}
+
+\textbf{Pregunta:} ¿Qué sistema operativo usará su proyecto integrador: Linux, Windows IoT, Android, RTOS o ninguno? Indiquen el requisito que decide y un requisito que el sistema elegido no puede cumplir.
+
+\textbf{Respuesta aplicada al proyecto:} \\
+Ya con el módulo compilado revisamos la decisión de la Clase 7 con números propios, y se mantiene (Tabla \ref{tab:eleccion_so}).
+
+\begin{table}[H]
+	\centering
+	\caption{Revisión de la elección de SO}
+	\label{tab:eleccion_so}
+	\small
+	\begin{tabular}{|p{1.8cm}|p{2.75cm}|p{2.75cm}|}
+		\hline
+		\textbf{Criterio} & \textbf{Mando: bare-metal} & \textbf{Consola: Linux} \\
+		\hline
+		Determinismo & Requisito $\pm 500\text{ }\mu\text{s}$; en emulador $\pm 2\text{ }\mu\text{s}$ & Tiempo real blando: $16.6\text{ ms}$ por cuadro \\
+		\hline
+		Huella & $41.7\text{ KB}$ de Flash, $5.6\text{ KB}$ estáticos de RAM & Reposo de $120$ a $150\text{ MB}$ de $1\text{ GB}$ (estimado en el Avance 1) \\
+		\hline
+		Multitarea & Dos núcleos e interrupciones & Procesos con planificador del kernel \\
+		\hline
+	\end{tabular}
+\end{table}
+
+Un RTOS en el mando no nos daría más: ya hay margen de $500 / 2 = 250$ veces en la tolerancia y solo hay dos actividades. En la consola tampoco hace falta PREEMPT\_RT, porque el dato con tiempo estricto ya se resuelve en la Pico.
+
+\subsection{Cambios de decisiones y su motivo}
+
+La Tabla \ref{tab:cambios} registra lo que cambió desde el Avance 1.
+
+\begin{table}[H]
+	\centering
+	\caption{Decisiones que cambiaron}
+	\label{tab:cambios}
+	\small
+	\begin{tabular}{|p{1.9cm}|p{1.9cm}|p{3.5cm}|}
+		\hline
+		\textbf{Antes} & \textbf{Ahora} & \textbf{Motivo} \\
+		\hline
+		Bloque SPI del RP2040 & Máquina PIO & El SPI no genera el pulso de carga LD, y Q7 ya trae el primer bit antes del primer flanco. La PIO hace toda la secuencia exacta sin usar a la CPU. \\
+		\hline
+		Core 0 E/S y Core 1 USB & Core 1 E/S y Core 0 USB & El SDK exige iniciar el USB serial en el núcleo de la alarma por defecto, que es Core 0 (\texttt{stdio\_usb.c}). \\
+		\hline
+		Mutex de hardware & Spin lock & La escritura ocurre en una interrupción, y ahí no se debe dormir esperando un mutex. Además, lo que el RP2040 tiene en hardware son 32 spin locks; el mutex del SDK se construye encima. \\
+		\hline
+		Flash $< 40\text{ KB}$ & $41.7\text{ KB}$ & La estimación no contaba la pila USB completa. Sigue siendo el $2\%$ de la Flash. \\
+		\hline
+		Sin antirrebote & 2 muestras más bloqueo de $20\text{ ms}$ & Un tact switch rebota. Peor caso: $5 + 5 + 1\text{ (USB)} = 11\text{ ms}$, debajo del límite de $15\text{ ms}$. \\
+		\hline
+		10 botones & 8 botones & Una cruceta por jugador en el panel del gabinete. \\
+		\hline
+		HDMI & TFT SPI de 3.5'' (ST7796S) & Va integrada al gabinete impreso. Riesgo nuevo: $480 \times 320 \times 16\text{ bits} \times 60 = 147.5\text{ Mbit/s}$. Aun a $62.5\text{ MHz}$ de SPI, redibujar toda la pantalla da $25\text{ FPS}$, así que habrá que enviar solo lo que cambia. \\
+		\hline
+		CPU a $1.5\text{ GHz}$ & $1.8\text{ GHz}$ & Nuestra Pi es Rev 1.5 y su máximo medido es $1{,}800\text{ MHz}$. \\
+		\hline
+	\end{tabular}
+\end{table}
