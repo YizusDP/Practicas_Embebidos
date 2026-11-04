@@ -68,12 +68,12 @@ La adquisición completa de los registros se ejecuta en un micro-pulso de menos 
 
 El sistema arranca de manera autónoma al energizarse. Si la adquisición se detiene anómalamente durante más de $2\text{ s}$, el microcontrolador se reinicia de forma segura mediante el \textit{watchdog}.
 
-\begin{figure}[H]
+\begin{figure*}[!t]
     \centering
-    %\includegraphics[width=\columnwidth]{img/diagrama_bloques.png}
+    \includegraphics[width=\textwidth]{img/diagrama_bloques_v2.png}
     \caption{Diagrama de bloques del módulo de adquisición digital con filtrado RC.}
     \label{fig:bloques}
-\end{figure}
+\end{figure*}
 
 \begin{table*}[!t]
     \centering
@@ -108,19 +108,19 @@ La Tabla \ref{tab:cableado} muestra las asignaciones físicas. El registro 74HC1
     \caption{Conexiones del módulo de adquisición}
     \label{tab:cableado}
     \small
-    \begin{tabular}{|l|c|l|l|}
+    \begin{tabular}{|l|c|c|l|}
         \hline
         \textbf{Pico} & \textbf{Pin} & \textbf{74HC165} & \textbf{Función} \\
         \hline
-        GP16 & 21 & 9 ($Q_7$) & Datos serie \\
+        GP16 & 21 & 9 & Datos serie ($Q_7$) \\
         \hline
-        GP17 & 22 & 1 ($\text{SH}/\text{LD}$) & Carga paralela \\
+        GP17 & 22 & 1 & Carga paralela \\
         \hline
-        GP18 & 24 & 2 (CLK) & Reloj de desplazamiento ($1\text{ MHz}$) \\
+        GP18 & 24 & 2 & Reloj ($1\text{ MHz}$) \\
         \hline
-        3V3(OUT) & 36 & 16 (VCC) & Alimentación lógica \\
+        3V3(OUT) & 36 & 16 & Alimentación \\
         \hline
-        GND & 38 & 8 y 15 & Tierra y $\overline{\text{CLK INH}}$ \\
+        GND & 38 & 8, 15 & Tierra y $\overline{\text{CLK INH}}$ \\
         \hline
     \end{tabular}
 \end{table}
@@ -129,7 +129,7 @@ Para garantizar una señal limpia, cada entrada incorpora una red de filtrado an
 
 \begin{figure}[H]
     \centering
-    %\includegraphics[width=0.62\columnwidth]{img/cableado_foto.png}
+    \includegraphics[width=\columnwidth]{img/cableado_foto.png}
     \caption{Prototipo físico con red RC de $330\,\Omega$ y $100\,\text{nF}$.}
     \label{fig:foto}
 \end{figure}
@@ -148,7 +148,7 @@ La Tabla \ref{tab:pruebas} resume las validaciones experimentales del módulo so
 
 \begin{figure}[H]
     \centering
-    \imgph{Salida de verificación con la Raspberry Pi Pico real}{3.2cm}
+    \includegraphics[width=\columnwidth]{img/captura_depuracion.png}
     \caption{Validación de funcionamiento en el hardware.}
     \label{fig:hw}
 \end{figure}
@@ -168,6 +168,6 @@ Como apoyo al desarrollo de la documentación técnica y estructuración de repo
 
 \vspace{0.2cm}
 \noindent\textbf{Repositorio:} \\
-\url{https://github.com/SistemasEmbebidos-Grupo6/ProyectoFinal-ArcadeRetro}
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
 
 \end{document}
