@@ -1,0 +1,41 @@
+.program read_74hc165
+
+.wrap_target
+    ; Carga paralela: LD = 0, CLK = 0 (Binario 00)
+    set pins, 0 [31]   ; Mantener LD en bajo 1 segundo approx
+    set pins, 0 [31]
+    
+    ; Liberar Carga: LD = 1, CLK = 0 (Binario 01)
+    set pins, 1 [31]   ; Q7/QH ya tiene el bit H (MSB / D7)
+    set pins, 1 [31]
+    
+    ; Leer el bit H inmediatamente y enviar al FIFO
+    in pins, 1
+    push block         ; Envía el bit leído directamente a la CPU
+    
+    ; Bucle para los 7 bits restantes (G hasta A)
+    set x, 6
+bit_loop:
+    ; Flanco de subida: CLK = 1, LD = 1 (Binario 11) -> Desplaza
+    set pins, 3 [31]
+    set pins, 3 [31]
+    
+    ; Flanco de bajada: CLK = 0, LD = 1 (Binario 01)
+    set pins, 1 [31]
+    set pins, 1 [31]
+    
+    ; Leer el nuevo bit en Q7 y empujar al FIFO
+    in pins, 1
+    push block
+    
+    jmp x-- bit_loop
+
+    ; Pausa de 2 segundos antes de la siguiente captura completa
+    set y, 1
+delay_between_reads:
+    set x, 31
+sub_delay:
+    nop [31]
+    jmp x-- sub_delay
+    jmp y-- delay_between_reads
+.wrap
