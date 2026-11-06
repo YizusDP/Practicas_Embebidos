@@ -1,21 +1,76 @@
 \documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
 \usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage{amsmath,amssymb}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
 \usepackage{float}
+\usepackage{listings}
+\usepackage{multirow}
 \usepackage[hidelinks]{hyperref}
 
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+	T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
 \begin{document}
+
 \title{Bitácora de Decisiones de Diseño: Avance 2 \\
-    \large Terminal de Juegos Retro Distribuida con Mando Embebido}
-\author{\IEEEauthorblockN{Equipo del proyecto final, Grupo 6}
-    \IEEEauthorblockA{\textit{Ingeniería en Computación, Facultad de Ingeniería, UNAM}}}
+	\large Terminal de Juegos Retro Distribuida con Mando Embebido \\
+	Sistemas Embebidos - Avance 2}
+
+\author{
+	\IEEEauthorblockN{Belmont Muñoz Samuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 317318289}
+	\and
+	\IEEEauthorblockN{Domínguez Palacios Jesús Alejandro}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 421066205}
+	\and
+	\IEEEauthorblockN{Dorantes Mejía Emmanuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 313004766}
+	\and
+	\IEEEauthorblockN{García Olvera Emiliano}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 314256009}
+	\and
+	\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320257780}
+	\and
+	\IEEEauthorblockN{Jiménez Reyes Alan Yael}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería}\\
+		No. Cuenta: 320026726}
+}
+
 \maketitle
+
+\begin{center}
+	\vspace{-0.3cm}
+	{\small
+		\textbf{Fecha de entrega:} 04/11/2026  | 
+		\textbf{Avance:} 2
+	}
+	\vspace{0.2cm}
+\end{center}
+
 \section{Bitácora de Decisiones de Diseño}
 
 \subsection{Clase 15: Almacenamiento de archivos}
-
+\textbf{Autores:} Belmont Muñoz Samuel, Domínguez Palacios Jesús Alejandro, Dorantes Mejía Emmanuel \\
 \textbf{Pregunta:} ¿Qué datos de su proyecto deben sobrevivir a un corte de energía? ¿En qué partición y sistema de archivos viven, y cuánto tiempo de datos pierde su sistema si la alimentación se interrumpe?
 
 \textbf{Respuesta aplicada al proyecto:} \\
@@ -31,7 +86,7 @@ En la consola, lo delicado es la microSD. Las ROMs y el sistema casi solo se lee
 \textbf{Decisión:} la telemetría no va a la microSD. Vive en \texttt{/tmp}, que en nuestra Pi es \texttt{tmpfs} (RAM), y los puntajes se guardan solo al terminar la partida. El sistema está en \texttt{/dev/mmcblk0p2} con ext4. Como un arcade se desconecta de golpe, para la versión final queremos montar la raíz en solo lectura.
 
 \subsection{Clase 16: Administración de energía}
-
+\textbf{Autores:} García Olvera Emiliano, Hernández Alonso Antonio Adonahí, Jiménez Reyes Alan Yael \\
 \textbf{Pregunta:} ¿Cuánto tiempo debe funcionar su sistema sin alimentación externa? ¿Qué estados de energía puede usar y en qué momento haría un apagado controlado?
 
 \textbf{Respuesta aplicada al proyecto:} \\
@@ -49,7 +104,7 @@ El arcade va conectado a la pared, así que la batería no es nuestro problema. 
 \end{itemize}
 
 \subsection{Clase 17: Linux embebido}
-
+\textbf{Autores:} Belmont Muñoz Samuel, García Olvera Emiliano, Hernández Alonso Antonio Adonahí \\
 \textbf{Pregunta:} ¿Su proyecto necesita Linux?
 
 \textbf{Respuesta aplicada al proyecto:} \\
@@ -63,7 +118,7 @@ La consola sí y el mando no.
 Al arrancar, un servicio de \texttt{systemd} lanzará RetroArch sin intervención. Ese servicio se hará en el Avance 3.
 
 \subsection{Clase 18: Elección del sistema operativo}
-
+\textbf{Autores:} Domínguez Palacios Jesús Alejandro, Dorantes Mejía Emmanuel, Jiménez Reyes Alan Yael \\
 \textbf{Pregunta:} ¿Qué sistema operativo usará su proyecto integrador: Linux, Windows IoT, Android, RTOS o ninguno? Indiquen el requisito que decide y un requisito que el sistema elegido no puede cumplir.
 
 \textbf{Respuesta aplicada al proyecto:} \\
@@ -116,5 +171,11 @@ La Tabla \ref{tab:cambios} registra lo que cambió desde el Avance 1.
         \hline
     \end{tabular}
 \end{table}
+
+\vspace{0.5cm}
+
+\noindent
+\textbf{Enlace al repositorio del proyecto:} \\
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
 
 \end{document}
