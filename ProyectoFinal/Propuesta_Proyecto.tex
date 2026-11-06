@@ -181,14 +181,24 @@ Esta sección presenta los requisitos funcionales y no funcionales del sistema, 
 
 El diagrama muestra claramente los sensores, actuadores, procesadores, buses de comunicación (SPI, USB HID, PWM/GPIO, ADC, HDMI, Ethernet) y el flujo de datos entre componentes.
 
-\begin{figure}[H]
+% Se usa figure* para que el diagrama ocupe todo el ancho de la página y se lea bien.
+\begin{figure*}[!t]
 	\centering
-	\includegraphics[width=0.95\columnwidth]{Diagrama-Bloques.png}
+	\includegraphics[width=\textwidth]{Diagrama-Bloques.png}
 	\caption{Arquitectura del sistema con sensores, actuadores, procesadores, buses y flujo de datos.}
 	\label{fig:diagrama_bloques}
-\end{figure}
+\end{figure*}
 
-\textbf{Descripción:} El sistema se compone de un Mando Arcade con sensores (botones digitales y potenciómetro analógico) conectados a un registro de desplazamiento $74HC165$ mediante líneas paralelas y enlace síncrono usando los puertos SPI hacia el microcontrolador esclavo (Raspberry Pi Pico - RP2040). El esclavo gestiona la adquisición por \textit{polling} a $200\text{ Hz}$, alimenta actuadores (motor de vibración, LEDs, buzzer) vía PWM/GPIO y se comunica mediante bus USB HID (hacia adelante) y canales de telemetría (hacia atrás) con el nodo maestro (Raspberry Pi 4 Model B con 1 GB de RAM). El maestro ejecuta RetroArch, emite video por HDMI a la pantalla, y se conecta mediante Ethernet/Wi-Fi a la interfaz de red LAN/WAN para el modo multijugador.
+\textbf{Descripción de los bloques y su función:} 
+El sistema se compone de los siguientes módulos interconectados:
+\begin{itemize}
+    \item \textbf{Mando Arcade (Sensores y Actuadores):} Los botones digitales y el potenciómetro analógico capturan la intención del usuario. Los actuadores (motor de vibración, LEDs de estado y buzzer pasivo) proporcionan retroalimentación física y visual.
+    \item \textbf{Registro de Desplazamiento ($74HC165$):} Convierte las señales paralelas de los múltiples botones en un flujo de datos serial síncrono para ahorrar pines en el microcontrolador.
+    \item \textbf{Nodo Esclavo (Raspberry Pi Pico - RP2040):} Microcontrolador \textit{bare-metal} que adquiere los datos por SPI a $200\text{ Hz}$, procesa la lógica de los controles y gestiona los actuadores vía PWM/GPIO.
+    \item \textbf{Bus USB HID:} Enlace de baja latencia que envía los reportes de estado del mando hacia el nodo maestro y recibe comandos de telemetría de vuelta.
+    \item \textbf{Nodo Maestro (Raspberry Pi 4 Model B):} Ejecuta RetroArch sobre Linux. Procesa la emulación, maneja la telemetría del juego y gestiona la salida de video.
+    \item \textbf{Buses de Salida y Red:} La salida HDMI envía la señal de video a la pantalla, mientras que la interfaz Ethernet/Wi-Fi permite la conexión a la red LAN/WAN para el modo multijugador.
+\end{itemize}
 
 \section{Plataforma y Sistema Operativo}
 
@@ -217,7 +227,7 @@ El diagrama muestra claramente los sensores, actuadores, procesadores, buses de 
 \section{Bitácora de Decisiones de Diseño}
 
 \subsection{Clase 7: Kickoff de proyecto + Panorama de SO embebidos}
-
+\textbf{Autores:} Belmont Muñoz Samuel \& Domínguez Palacios Jesús Alejandro \\
 \textbf{Pregunta:} ¿Qué categoría de SO embebido usarían para su proyecto — bare-metal, RTOS o Linux embebido — y por qué?
 
 \textbf{Respuesta aplicada al proyecto:} \\
@@ -232,7 +242,7 @@ En resumen, la parte que sí necesita determinismo (leer los controles) vive en 
 
 
 \subsection{Clase 8: Planificación (scheduling)}
-
+\textbf{Autores:} Domínguez Palacios Jesús Alejandro \& Dorantes Mejía Emmanuel \\
 \textbf{Pregunta:} ¿Qué tareas tendría su proyecto, y qué prioridad relativa le darían a cada una? ¿Alguna necesita planificación preemptiva sí o sí?
 
 \textbf{Respuesta aplicada al proyecto:} \\
@@ -276,7 +286,7 @@ Las tareas de los controles son las más importantes porque definen el \textit{i
 
 
 \subsection{Clase 9: Sincronización}
-
+\textbf{Autores:} Dorantes Mejía Emmanuel \& García Olvera Emiliano \\
 \textbf{Pregunta:} ¿Qué recurso compartido tendría su proyecto entre dos tareas, y qué mecanismo de sincronización usarían para protegerlo?
 
 \textbf{Respuesta aplicada al proyecto:} \\
@@ -295,7 +305,7 @@ Tenemos dos recursos críticos compartidos entre tareas concurrentes:
 \textbf{Cifras:} El overhead del mutex en el Pico es $< 1\text{ }\mu\text{s}$ por adquisición (medido en el SDK). El semáforo POSIX en Linux tiene un overhead de $\approx 2\text{--}3\text{ }\mu\text{s}$ por operación, imperceptible frente a los $16.6\text{ ms}$ del cuadro.
 
 \subsection{Clase 10: Gestión de Memoria en SO embebidos}
-
+\textbf{Autores:} García Olvera Emiliano \& Hernández Alonso Antonio Adonahí \\
 \textbf{Pregunta:} ¿Su proyecto se parece más al Caso A (asignaciones frecuentes y predecibles) o al Caso B (una asignación grande y rara)? ¿Qué estrategia de memoria usarían, con qué números?
 
 \textbf{Respuesta aplicada al proyecto:} \\
@@ -316,7 +326,7 @@ Nuestro proyecto se parece más al \textbf{Caso A} (asignaciones frecuentes y pr
 \textbf{¿Por qué no el Caso B?} La única asignación grande y rara sería cargar la ROM al iniciar el juego. Esa sí puede hacerse con \texttt{malloc} normal, porque ocurre fuera de la ventana de $16.6\text{ ms}$ y no afecta el input lag.
 
 \subsection{Clase 11: Comunicación entre Procesos (IPC)}
-
+\textbf{Autores:} Hernández Alonso Antonio Adonahí \& Jiménez Reyes Alan Yael \\
 \textbf{Pregunta:} ¿Su proyecto tendría más de un proceso comunicándose? Si es así, ¿qué mecanismo de IPC usarían y por qué?
 
 \textbf{Respuesta aplicada al proyecto:} \\
@@ -336,16 +346,22 @@ Sí, usamos un proceso separado para telemetría que se comunica con RetroArch (
 
 \textbf{Cifras:} $\approx 32$ bytes/mensaje, $60\text{ Hz}$, $\approx 2\text{ KB/s}$ throughput, $< 20\text{ }\mu\text{s}$ latencia.
 
-
 \subsection{Clase 12: Kernel, syscalls y drivers}
-
+\textbf{Autores:} Jiménez Reyes Alan Yael \& Belmont Muñoz Samuel \\
 \textbf{Pregunta:} ¿Qué tareas de su proyecto tienen una temporización que un proceso de usuario no puede garantizar? Para cada una, ¿usarían una syscall por evento, mmap de registros o un periférico de hardware configurado por su driver?
 
 \textbf{Respuesta aplicada al proyecto:} \\
-Para la lectura de los botones en el esclavo, se utiliza directamente el bloque de hardware SPI dedicado del RP2040 y temporizadores de hardware internos para el \textit{polling} a $200\text{ Hz}$, evitando depender de retardos en espacio de usuario. En el maestro, el acceso a drivers de video y red se realiza mediante llamadas al sistema (\textit{syscalls}) optimizadas del kernel de Linux.
+Nuestro sistema requiere garantías de tiempo que un proceso de usuario estándar no puede asegurar por sí solo, por lo que dividimos la estrategia entre ambos nodos:
 
-\textbf{Autor:} Belmont Muñoz Samuel \\
-\textbf{Fecha:} 17/10/2026
+\begin{itemize}
+    \item \textbf{Nodo Esclavo (Pico - Bare Metal):} La lectura de los botones a $200\text{ Hz}$ no puede depender de un bucle en espacio de usuario. Utilizamos \textbf{interrupciones de temporizador por hardware} (Timer IRQ) y el periférico \textbf{SPI dedicado}. Además, configuramos \textbf{DMA (Direct Memory Access)} para transferir los datos del $74HC165$ a la SRAM sin intervención de la CPU. Esto garantiza que el \textit{jitter} sea de apenas microsegundos y que el Core 0 quede libre para procesar la lógica.
+    \item \textbf{Nodo Maestro (Pi 4 - Linux):} Para evitar cuellos de botella:
+    \begin{itemize}
+        \item \textit{Video (HDMI):} En lugar de dibujar píxel por píxel con syscalls, RetroArch utiliza la API \textbf{DRM/KMS (Direct Rendering Manager)} a través de \texttt{ioctl()} para mapear el framebuffer directamente y hacer \textit{page flipping} en el hardware de video.
+        \item \textit{Red (Netplay):} Se utilizan \textbf{sockets POSIX} (\texttt{socket()}, \texttt{sendto()}, \texttt{recvfrom()}). El kernel de Linux se encarga de manejar los buffers de la tarjeta de red (Ethernet/Wi-Fi) y las interrupciones, entregando los paquetes al proceso.
+        \item \textit{Telemetría (RAM del juego):} Para leer la memoria de RetroArch sin afectar el rendimiento, el script hace uso de \texttt{/proc/[pid]/mem} mediante \texttt{pread()}, o utilizando \textbf{mmap()} si se requiere un acceso más rápido y continuo.
+    \end{itemize}
+\end{itemize}
 
 \section{Lista de Materiales y Análisis de Riesgos}
 
@@ -423,28 +439,28 @@ La Tabla \ref{tab:tareas} muestra la asignación de responsabilidades por tarea 
 	\centering
 	\caption{Distribución de tareas y responsables}
 	\label{tab:tareas}
-	\small
-	\begin{tabular}{|p{1.4cm}|p{3.4cm}|p{2.0cm}|}
+	\footnotesize % Se cambió a footnotesize para que quepan los nombres completos
+	\begin{tabular}{|p{1.4cm}|p{3.4cm}|p{2.8cm}|}
 		\hline
 		\textbf{Avance} & \textbf{Tarea} & \textbf{Responsable} \\
 		\hline
-		\multirow{3}{*}{Avance 2} & Ensamble de circuito $74HC165$ y potenciómetro & Pareja 1 (HW) \\
+		\multirow{3}{*}{Avance 2} & Ensamble de circuito $74HC165$ y potenciómetro & Belmont Muñoz Samuel \newline Domínguez Palacios Jesús A. \\
 		\cline{2-3}
-		& Firmware \textit{bare-metal} y polling a $200\text{ Hz}$ (RP2040) & Pareja 2 (FW) \\
+		& Firmware \textit{bare-metal} y polling a $200\text{ Hz}$ (RP2040) & Dorantes Mejía Emmanuel \newline García Olvera Emiliano \\
 		\cline{2-3}
-		& Configuración Linux Lite, RetroArch y ROMs & Pareja 3 (SW) \\
+		& Configuración Linux Lite, RetroArch y ROMs & Hernández Alonso Antonio A. \newline Jiménez Reyes Alan Yael \\
 		\hline
-		\multirow{3}{*}{Avance 3} & Integración física de sensores y actuadores & Pareja 1 y 2 \\
+		\multirow{3}{*}{Avance 3} & Integración física de sensores y actuadores & Belmont Muñoz Samuel \newline Domínguez Palacios Jesús A. \newline Dorantes Mejía Emmanuel \newline García Olvera Emiliano \\
 		\cline{2-3}
-		& Enlace USB HID y script de telemetría RAM & Pareja 2 y 3 \\
+		& Enlace USB HID y script de telemetría RAM & Dorantes Mejía Emmanuel \newline García Olvera Emiliano \newline Hernández Alonso Antonio A. \newline Jiménez Reyes Alan Yael \\
 		\cline{2-3}
-		& Pruebas de Netplay en red local LAN & Pareja 3 (Redes) \\
+		& Pruebas de Netplay en red local LAN & Hernández Alonso Antonio A. \newline Jiménez Reyes Alan Yael \\
 		\hline
-		\multirow{3}{*}{Avance 4} & Sincronización multijugador LAN avanzada & Pareja 3 (Redes) \\
+		\multirow{3}{*}{Avance 4} & Sincronización multijugador LAN avanzada & Hernández Alonso Antonio A. \newline Jiménez Reyes Alan Yael \\
 		\cline{2-3}
-		& Pruebas de latencia de extremo a extremo ($< 15\text{ ms}$) & Pareja 1 y 2 \\
+		& Pruebas de latencia de extremo a extremo ($< 15\text{ ms}$) & Belmont Muñoz Samuel \newline Domínguez Palacios Jesús A. \newline Dorantes Mejía Emmanuel \newline García Olvera Emiliano \\
 		\cline{2-3}
-		& Integración final y redacción de reporte & Todos \\
+		& Integración final y redacción de reporte & Todos los integrantes \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -468,6 +484,6 @@ Durante el desarrollo de este proyecto se utilizaron las siguientes herramientas
 
 \noindent
 \textbf{Enlace al repositorio del proyecto:} \\
-\url{https://github.com/SistemasEmbebidos-Grupo6/ProyectoFinal-ArcadeRetro}
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
 
 \end{document}
