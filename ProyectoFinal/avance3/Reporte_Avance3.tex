@@ -122,7 +122,7 @@ presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó c
 		\hline
 		Pantalla TFT 3.5'' & ST7796S por SPI a 50 MHz, driver \texttt{panel-mipi-dbi}, 480$\times$320 & \texttt{pantalla/config\_txt\_pantalla.txt} & Lista \\
 		\hline
-		Telemetría e IPC & Lectura de RAM por UDP 55355; socket \texttt{AF\_UNIX} hacia el puente serial & \texttt{pi/telemetria.py}, \texttt{pi/puente\_serial.py} & \pend{ok?} \\
+		Telemetría e IPC & Lectura de RAM por UDP 55355; socket \texttt{AF\_UNIX} hacia el puente serial & \texttt{pi/telemetria.py}, \texttt{pi/puente\_serial.py} & Lista \\
 		\hline
 		Red LAN & Ethernet de la Pi 4; netplay en el Avance 4 & --- & Parcial \\
 		\hline
@@ -197,7 +197,7 @@ La Tabla~\ref{tab:bitacora} resume dónde quedó cada decisión. Las entradas fi
 		\hline
 		9 Pi 4 & Triple buffer con semáforos POSIX & Lo resuelve RetroArch con DRM & \texttt{ra\_gl.cfg:3261} & No es código nuestro; se configura con \texttt{video\_max\_swapchain\_images = "3"} \\
 		\hline
-		11 & Socket \texttt{AF\_UNIX DGRAM} expuesto por RetroArch & RetroArch expone UDP 55355; el socket UNIX une telemetría y puente & \pend{telemetria.py:N, puente\_serial.py:N} & RetroArch no ofrece socket UNIX \\
+		11 & Socket \texttt{AF\_UNIX DGRAM} expuesto por RetroArch & RetroArch expone UDP 55355; el socket UNIX une telemetría y puente & telemetria.py:36, puente\_serial.py:55 & RetroArch no ofrece socket UNIX \\
 		\hline
 	\end{tabular}
 \end{table*}
