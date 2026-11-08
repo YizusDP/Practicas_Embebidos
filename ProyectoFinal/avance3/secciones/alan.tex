@@ -1,0 +1,18 @@
+%=====================================================================
+% Sección de Jiménez Reyes Alan Yael: bitácora clase 11 (IPC)
+%=====================================================================
+\subsection{Clase 11: Comunicación entre procesos}
+\textbf{Autor:} Jiménez Reyes Alan Yael
+
+\textbf{Planeado:} RetroArch expone \texttt{/tmp/retroarch\_telemetry.sock} (\texttt{AF\_UNIX}, \texttt{SOCK\_DGRAM}) y un script de telemetría se conecta a él.
+
+\textbf{Construido:}
+\begin{itemize}
+	\item \texttt{telemetria.py} pide la RAM del juego a RetroArch por UDP en \texttt{127.0.0.1:55355} (\pend{línea N}).
+	\item Envía cada orden como datagrama a \texttt{/tmp/arcade\_act.sock} (\pend{línea N}).
+	\item \texttt{puente\_serial.py} recibe el datagrama y lo escribe en \texttt{/dev/ttyACM0} (\pend{línea N}).
+\end{itemize}
+
+\textbf{Direcciones de RAM usadas:} \pend{juego, dirección, qué significa}.
+
+\textbf{Diferencias:} RetroArch no ofrece un socket UNIX, sino comandos por UDP; el socket UNIX quedó entre nuestros dos procesos.

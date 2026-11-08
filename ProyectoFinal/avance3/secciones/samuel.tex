@@ -1,0 +1,40 @@
+%=====================================================================
+% Sección de Belmont Muñoz Samuel: pruebas de integración
+% Solo Samuel edita este archivo. Quitar todos los \pend{} antes de entregar.
+%=====================================================================
+\section{Pruebas de integración}
+\textbf{Autor:} Belmont Muñoz Samuel
+
+\textbf{Requisito medido:} RF1 del Avance 1, lectura de botones con periodo de $5\text{ ms} \pm 0.5\text{ ms}$ ($200\text{ Hz}$).
+
+\textbf{Método:} en cada disparo de la alarma se guarda \texttt{time\_us\_64()} y se calcula la diferencia con el anterior.
+Tras \pend{10,000} muestras la Pico imprime por el serial el mínimo, el máximo y el promedio (\texttt{firmware/botones.c}, línea \pend{N}).
+
+\begin{table}[H]
+	\centering
+	\caption{Periodo de muestreo medido contra el Avance 1}
+	\label{tab:medicion}
+	\small
+	\begin{tabular}{|l|c|c|}
+		\hline
+		\textbf{Dato} & \textbf{Comprometido} & \textbf{Medido} \\
+		\hline
+		Periodo mínimo & $\geq 4{,}500\text{ }\mu\text{s}$ & \pend{} \\
+		\hline
+		Periodo máximo & $\leq 5{,}500\text{ }\mu\text{s}$ & \pend{} \\
+		\hline
+		Periodo promedio & $5{,}000\text{ }\mu\text{s}$ & \pend{} \\
+		\hline
+		Muestras & --- & \pend{} \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+	\centering
+	\imgph{captura de la terminal con la medición del periodo}{4cm}
+	\caption{Salida de la medición en la terminal.}
+	\label{fig:medicion}
+\end{figure}
+
+\textbf{Resultado:} \pend{cumple / no cumple, y con qué margen}.

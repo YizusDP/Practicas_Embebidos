@@ -1,0 +1,36 @@
+%=====================================================================
+% Sección de Hernández Alonso Antonio Adonahí: robustez (2 fallas inducidas)
+% Solo Adonahí edita este archivo. Jesús ejecuta las fallas en la Pi y le pasa las capturas.
+%=====================================================================
+\section{Robustez: fallas inducidas}
+\textbf{Autor:} Hernández Alonso Antonio Adonahí
+
+\begin{table}[H]
+	\centering
+	\caption{Fallas inducidas y recuperación}
+	\label{tab:fallas}
+	\small
+	\begin{tabular}{|p{1.7cm}|p{2.2cm}|p{2.4cm}|p{1.0cm}|}
+		\hline
+		\textbf{Falla} & \textbf{Cómo se induce} & \textbf{Cómo se recupera} & \textbf{Tiempo} \\
+		\hline
+		F1: proceso muerto & \texttt{sudo kill -9 \$(pidof retroarch)} & \texttt{systemd} lo relanza por \texttt{Restart=always} & \pend{s} \\
+		\hline
+		F2: control desconectado & Se desconecta el USB del control en plena partida & RetroArch lo reconoce al reconectarlo; el puente reabre \texttt{/dev/ttyACM0} & \pend{s} \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+	\centering
+	\imgph{captura de \texttt{journalctl -u arcade-retroarch} con la caída y el reinicio (F1)}{3.5cm}
+	\caption{Recuperación de la falla F1.}
+	\label{fig:f1}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\imgph{captura de \texttt{dmesg} o del log del puente al reconectar el control (F2)}{3.5cm}
+	\caption{Recuperación de la falla F2.}
+	\label{fig:f2}
+\end{figure}

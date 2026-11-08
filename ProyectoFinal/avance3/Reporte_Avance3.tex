@@ -1,0 +1,215 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{array}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{gris}{rgb}{0.45,0.45,0.45}
+\definecolor{pend}{rgb}{0.75,0.10,0.10}
+
+\lstset{
+	basicstyle=\ttfamily\scriptsize,
+	frame=single,
+	breaklines=true,
+	showstringspaces=false,
+	columns=fullflexible,
+	literate=%
+	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+	{ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+
+% Recuadro para una imagen que todavía no existe: \imgph{descripción}{alto}
+\newcommand{\imgph}[2]{%
+	\fbox{\begin{minipage}[c][#2][c]{0.92\columnwidth}
+			\centering\textcolor{gris}{\footnotesize [Espacio para imagen: #1]}
+	\end{minipage}}%
+}
+% Marca en rojo lo que falta llenar. Antes de entregar no debe quedar ninguno.
+\newcommand{\pend}[1]{\textcolor{pend}{[#1]}}
+
+\begin{document}
+
+\title{Avance 3: Integración de Extremo a Extremo \\
+	\large Terminal de Juegos Retro Distribuida con Mando Embebido}
+
+\author{
+	\IEEEauthorblockN{Belmont Muñoz Samuel}
+	\IEEEauthorblockA{No. Cuenta: 317318289}
+	\and
+	\IEEEauthorblockN{Domínguez Palacios Jesús Alejandro}
+	\IEEEauthorblockA{No. Cuenta: 421066205}
+	\and
+	\IEEEauthorblockN{Dorantes Mejía Emmanuel}
+	\IEEEauthorblockA{No. Cuenta: 313004766}
+	\and
+	\IEEEauthorblockN{García Olvera Emiliano}
+	\IEEEauthorblockA{No. Cuenta: 314256009}
+	\and
+	\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}
+	\IEEEauthorblockA{No. Cuenta: 320257780}
+	\and
+	\IEEEauthorblockN{Jiménez Reyes Alan Yael}
+	\IEEEauthorblockA{No. Cuenta: 320026726}
+}
+
+\maketitle
+
+\begin{center}
+	\vspace{-0.3cm}
+	{\small \textbf{Fundamentos de Sistemas Embebidos, Grupo 6} \quad
+		\textbf{Fecha:} 09/11/2026}
+\end{center}
+
+\begin{abstract}
+Este avance integra todos los bloques del sistema: el mando basado en Raspberry Pi Pico lee 10 botones
+mediante dos registros 74HC165 en cascada y un potenciómetro, y se presenta ante la Raspberry Pi 4 como un
+control USB HID. La consola ejecuta RetroArch sobre Raspberry Pi OS Lite y muestra el juego en una pantalla
+TFT SPI de 3.5''. Un proceso de telemetría lee la RAM del juego y, por medio de un socket UNIX y un segundo
+proceso, ordena a la Pico activar el motor de vibración, el buzzer y los LEDs. Todo el sistema arranca solo
+al encenderse mediante servicios de \texttt{systemd}.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Raspberry Pi Pico, Raspberry Pi 4, USB HID, RetroArch, systemd, socket UNIX, PIO, DMA.
+\end{IEEEkeywords}
+
+%=====================================================================
+% SECCIÓN DE JESÚS: sistema integrado y demostración
+%=====================================================================
+\section{Sistema integrado}
+\textbf{Autor:} Domínguez Palacios Jesús Alejandro
+
+La Fig.~\ref{fig:bloques} muestra el diagrama de bloques actualizado. Todos los bloques del Avance 1 están
+presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó cada uno y en qué archivo está.
+
+\begin{figure*}[!t]
+	\centering
+	\imgph{diagrama de bloques del Avance 3 (diagrama.py de Adonahí)}{6cm}
+	% Cuando exista: \includegraphics[width=\textwidth]{../img/diagrama_bloques_v3.png}
+	\caption{Diagrama de bloques del sistema integrado.}
+	\label{fig:bloques}
+\end{figure*}
+
+\begin{table*}[!t]
+	\centering
+	\caption{Bloques del sistema y su implementación}
+	\label{tab:bloques}
+	\small
+	\begin{tabular}{|p{3.2cm}|p{6.6cm}|p{4.6cm}|p{1.4cm}|}
+		\hline
+		\textbf{Bloque} & \textbf{Implementación} & \textbf{Archivo} & \textbf{Estado} \\
+		\hline
+		Botones y 74HC165 $\times 2$ & 10 botones en cascada, lectura por PIO + DMA cada 5 ms & \texttt{firmware/botones.c}, \texttt{read\_74hc165.pio} & \pend{ok?} \\
+		\hline
+		Potenciómetro & ADC de 12 bits, cada 10 ms & \texttt{firmware/adc\_pot.c} & \pend{ok?} \\
+		\hline
+		Enlace USB & Dispositivo compuesto: HID gamepad + CDC serial (TinyUSB) & \texttt{firmware/main.c}, \texttt{usb\_descriptors.c} & \pend{ok?} \\
+		\hline
+		Actuadores & Motor y buzzer por PWM, LEDs por GPIO; órdenes \texttt{VIB}, \texttt{BUZ}, \texttt{LED} & \texttt{firmware/actuadores.c} & \pend{ok?} \\
+		\hline
+		Consola (Linux) & Raspberry Pi OS Lite, kernel 6.18, arranque con \texttt{systemd} & \texttt{pi/systemd/*.service} & \pend{ok?} \\
+		\hline
+		Emulación & RetroArch con driver \texttt{gl} sobre DRM & \texttt{pantalla/ra\_gl.cfg} & \pend{ok?} \\
+		\hline
+		Pantalla TFT 3.5'' & ST7796S por SPI a 50 MHz, driver \texttt{panel-mipi-dbi}, 480$\times$320 & \texttt{pantalla/config\_txt\_pantalla.txt} & Lista \\
+		\hline
+		Telemetría e IPC & Lectura de RAM por UDP 55355; socket \texttt{AF\_UNIX} hacia el puente serial & \texttt{pi/telemetria.py}, \texttt{pi/puente\_serial.py} & \pend{ok?} \\
+		\hline
+		Red LAN & Ethernet de la Pi 4; netplay en el Avance 4 & --- & Parcial \\
+		\hline
+	\end{tabular}
+\end{table*}
+
+\subsection{Flujo de datos de extremo a extremo}
+\begin{enumerate}
+	\item \textbf{Entrada:} un botón cambia de nivel; la alarma de 5 ms dispara la PIO, que serializa los 16 bits
+	de los 74HC165; el DMA los copia a SRAM y la estructura \texttt{estado} se actualiza bajo un spin lock.
+	\item \textbf{Hacia la consola:} Core 0 arma el reporte HID y lo envía por USB; en Linux, el driver
+	\texttt{usbhid} lo publica en \texttt{/dev/input/event}\pend{N}, de donde lo lee RetroArch.
+	\item \textbf{Salida de video:} RetroArch dibuja el cuadro y el driver \texttt{panel-mipi-dbi} lo envía por SPI a la pantalla.
+	\item \textbf{Retroalimentación:} \texttt{telemetria.py} lee las vidas y el puntaje; al detectar un cambio manda una
+	orden por el socket UNIX a \texttt{puente\_serial.py}, que la escribe en \texttt{/dev/ttyACM0}; la Pico activa el actuador.
+\end{enumerate}
+
+\subsection{Demostración}
+\begin{figure}[H]
+	\centering
+	\imgph{foto del sistema completo: control, Pi 4 y pantalla con el juego}{4.5cm}
+	\caption{Sistema integrado durante la demostración.}
+	\label{fig:demo}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\imgph{captura de \texttt{evtest} con botones y potenciómetro}{4cm}
+	\caption{Eventos del control recibidos por Linux.}
+	\label{fig:evtest}
+\end{figure}
+
+\subsection{Configuración reproducible}
+Los pasos completos están en el \texttt{README.md} del repositorio. En resumen, en una Pi recién instalada:
+\begin{lstlisting}
+git clone https://github.com/YizusDP/Practicas_Embebidos.git
+cd Practicas_Embebidos/ProyectoFinal
+sudo ./pi/instalar.sh
+sudo reboot
+\end{lstlisting}
+Tras el reinicio, \texttt{systemctl status arcade.target} muestra los tres servicios activos (Fig.~\ref{fig:arranque}).
+\begin{figure}[H]
+	\centering
+	\imgph{captura de \texttt{systemctl status arcade.target} justo después de encender}{3.5cm}
+	\caption{Arranque automático del sistema.}
+	\label{fig:arranque}
+\end{figure}
+
+%=====================================================================
+% SECCIONES DE CADA INTEGRANTE (cada quien edita solo la suya)
+%=====================================================================
+\input{secciones/samuel}          % Pruebas de integración: medición
+\input{secciones/adonahi_fallas}  % Robustez: 2 fallas inducidas
+
+\section{Bitácora: planeado frente a construido}
+La Tabla~\ref{tab:bitacora} resume dónde quedó cada decisión. Las entradas firmadas de cada clase están a continuación.
+
+\begin{table*}[!t]
+	\centering
+	\caption{Decisiones de las clases 8, 9 y 11: planeado frente a construido}
+	\label{tab:bitacora}
+	\small
+	\begin{tabular}{|p{1.2cm}|p{3.6cm}|p{3.8cm}|p{3.2cm}|p{3.8cm}|}
+		\hline
+		\textbf{Clase} & \textbf{Planeado (Avance 1)} & \textbf{Construido} & \textbf{Archivo:línea} & \textbf{Diferencia y causa} \\
+		\hline
+		8 Pico & Lectura de botones por interrupción de temporizador cada 5 ms, prioridad alta & \pend{Samuel} & \pend{botones.c:N} & \pend{} \\
+		\hline
+		8 Pi 4 & RetroArch con \textit{nice} menor que la telemetría & \texttt{Nice=-5} en RetroArch, \texttt{Nice=10} en telemetría & \pend{arcade-retroarch.service:N} & Ninguna \\
+		\hline
+		9 Pico & Mutex de hardware sobre el reporte HID & Spin lock sobre \texttt{estado} & \pend{estado.h:N, botones.c:N} & No se puede dormir esperando un mutex dentro de una interrupción \\
+		\hline
+		9 Pi 4 & Triple buffer con semáforos POSIX & Lo resuelve RetroArch con DRM & \texttt{ra\_gl.cfg:3261} & No es código nuestro; se configura con \texttt{video\_max\_swapchain\_images = "3"} \\
+		\hline
+		11 & Socket \texttt{AF\_UNIX DGRAM} expuesto por RetroArch & RetroArch expone UDP 55355; el socket UNIX une telemetría y puente & \pend{telemetria.py:N, puente\_serial.py:N} & RetroArch no ofrece socket UNIX \\
+		\hline
+	\end{tabular}
+\end{table*}
+
+\input{secciones/adonahi}   % Clases 8 y 9
+\input{secciones/alan}      % Clase 11
+\input{secciones/emiliano}  % Clase 20: tipos y volatile
+\input{secciones/emmanuel}  % Clase 21: drivers
+\input{secciones/alan_plan} % Pendientes del Avance 4 y declaración de IA
+
+\vspace{0.2cm}
+\noindent\textbf{Repositorio:} \\
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
+
+\end{document}

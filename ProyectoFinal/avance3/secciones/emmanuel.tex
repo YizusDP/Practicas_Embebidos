@@ -1,0 +1,40 @@
+%=====================================================================
+% Sección de Dorantes Mejía Emmanuel: bitácora clase 21 (drivers)
+%=====================================================================
+\subsection{Clase 21: Driver de cada sensor y actuador}
+\textbf{Autor:} Dorantes Mejía Emmanuel
+
+\textbf{Pregunta:} \pend{copiar la pregunta de la clase 21}.
+
+\begin{table}[H]
+	\centering
+	\caption{Drivers de sensores y actuadores}
+	\label{tab:drivers}
+	\small
+	\begin{tabular}{|p{1.8cm}|p{2.6cm}|p{2.6cm}|}
+		\hline
+		\textbf{Elemento} & \textbf{Driver} & \textbf{Evidencia} \\
+		\hline
+		Botones & PIO + DMA (propio) & \pend{} \\
+		\hline
+		Potenciómetro & \texttt{hardware/adc} & \pend{} \\
+		\hline
+		Motor, buzzer & \texttt{hardware/pwm} & \pend{} \\
+		\hline
+		LEDs & \texttt{hardware/gpio} & \pend{} \\
+		\hline
+		Control (Pi) & \texttt{usbhid} $\rightarrow$ \texttt{/dev/input/event}\pend{N} & \texttt{/proc/bus/input/devices} \\
+		\hline
+		Serial (Pi) & \texttt{cdc\_acm} $\rightarrow$ \texttt{/dev/ttyACM0} & \texttt{dmesg} \\
+		\hline
+		Pantalla (Pi) & \texttt{panel-mipi-dbi} & \texttt{lsmod} \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+	\centering
+	\imgph{capturas de \texttt{lsusb}, \texttt{dmesg | tail}, \texttt{lsmod | grep mipi}}{4cm}
+	\caption{Drivers cargados en la consola.}
+	\label{fig:drivers}
+\end{figure}

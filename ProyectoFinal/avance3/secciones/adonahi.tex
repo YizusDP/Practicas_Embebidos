@@ -1,0 +1,33 @@
+%=====================================================================
+% Sección de Hernández Alonso Antonio Adonahí: bitácora clases 8 y 9
+%=====================================================================
+\subsection{Clase 8: Planificación}
+\textbf{Autor:} Hernández Alonso Antonio Adonahí
+
+\textbf{Planeado:} \pend{resumen de la tabla de tareas y prioridades del Avance 1}.
+
+\textbf{Construido:}
+\begin{itemize}
+	\item \textbf{Pico:} \pend{la alarma de 5 ms, en \texttt{firmware/botones.c}, línea N}.
+	\item \textbf{Pi 4:} \texttt{Nice=-5} para RetroArch y \texttt{Nice=10} para la telemetría
+	(\pend{\texttt{pi/systemd/arcade-retroarch.service}, línea N}).
+\end{itemize}
+
+\begin{figure}[H]
+	\centering
+	\imgph{captura de \texttt{ps -o pid,ni,comm -C retroarch,python3}}{2.5cm}
+	\caption{Prioridades de los procesos en la consola.}
+	\label{fig:nice}
+\end{figure}
+
+\textbf{Diferencias:} \pend{}.
+
+\subsection{Clase 9: Sincronización}
+\textbf{Autor:} Hernández Alonso Antonio Adonahí
+
+\textbf{Planeado:} mutex de hardware en la Pico; triple buffer con semáforos POSIX en la Pi.
+
+\textbf{Construido:} \pend{spin lock sobre \texttt{estado} en \texttt{firmware/estado.h}, línea N, y \texttt{botones.c}, línea N}.
+
+\textbf{Diferencias:} se usa spin lock porque la escritura ocurre dentro de una interrupción y ahí no se puede dormir
+esperando un mutex. El triple buffer lo hace RetroArch (\texttt{ra\_gl.cfg}, línea 3261) y no código nuestro.
