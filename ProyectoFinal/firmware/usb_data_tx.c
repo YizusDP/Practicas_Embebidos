@@ -188,7 +188,12 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
     return n;
 }
 
-//SET_REPORT / salida del host. Por acá llegará la telemetría
+//SET_REPORT / salida del host: órdenes de actuadores que manda la telemetría de la Pi.
+//Los valores de 16 bits llegan en little-endian (byte bajo primero): se arman con le16().
+static uint16_t le16(const uint8_t *p) {
+    return (uint16_t)(p[0] | (p[1] << 8));
+}
+
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
                            hid_report_type_t report_type,
                            const uint8_t *buffer, uint16_t bufsize) {
@@ -198,8 +203,8 @@ void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
     if (report_type != HID_REPORT_TYPE_OUTPUT || bufsize < ACT_REPORT_SIZE) return;
 
     switch (buffer[0]) {
-        case CMD_VIB: actuadores_vib(buffer[1]);                    break;
-        case CMD_BUZ: actuadores_buz(buffer[1], buffer[3]); break;
+        case CMD_VIB: actuadores_vib(le16(&buffer[1]));                    break;
+        case CMD_BUZ: actuadores_buz(le16(&buffer[1]), le16(&buffer[3])); break;
         case CMD_LED: actuadores_led(buffer[1], buffer[2] != 0);           break;
         default:      break;      // comando desconocido: se ignora
     }
