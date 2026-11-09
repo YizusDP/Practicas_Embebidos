@@ -5,6 +5,8 @@
 \section{Robustez: fallas inducidas}
 \textbf{Autor:} Hernández Alonso Antonio Adonahí
 
+El sistema fue sometido a dos pruebas de recuperación ante fallas para validar su robustez. La Tabla \ref{tab:fallas} resume los resultados obtenidos.
+
 \begin{table}[H]
 	\centering
 	\caption{Fallas inducidas y recuperación}
@@ -14,23 +16,49 @@
 		\hline
 		\textbf{Falla} & \textbf{Cómo se induce} & \textbf{Cómo se recupera} & \textbf{Tiempo} \\
 		\hline
-		F1: proceso muerto & \texttt{sudo kill -9 \$(pidof retroarch)} & \texttt{systemd} lo relanza por \texttt{Restart=always} & \pend{s} \\
+		F1: proceso muerto & \texttt{sudo kill -9 \$(pidof retroarch)} & \texttt{systemd} lo relanza por \texttt{Restart=always} (\texttt{RestartSec=2}) & 3.4 s \\
 		\hline
-		F2: control desconectado & Se desconecta el USB del control en plena partida & RetroArch lo reconoce al reconectarlo; el puente reabre \texttt{/dev/ttyACM0} & \pend{s} \\
+		F2: control desconectado & Se desconecta el USB del control en plena partida & RetroArch lo reconoce al reconectarlo; el puente reabre \texttt{/dev/arcade\_hid} & Pendiente \\
 		\hline
 	\end{tabular}
 \end{table}
 
+\subsection{Falla F1: proceso RetroArch muerto}
+
+La falla F1 se indujo ejecutando \texttt{sudo kill -9 \$(pidof retroarch)} a las 12:50:30.868 durante una partida de Pac-Man. El servicio \texttt{systemd} detectó la terminación anómala y relanzó el proceso a las 12:50:33.347 (tras el período configurado de \texttt{RestartSec=2} segundos). La telemetría se reconectó automáticamente a las 12:50:34.282.
+
+El tiempo total de recuperación fue de \textbf{3.4 segundos}, durante los cuales la pantalla quedó momentáneamente en negro antes de que RetroArch reapareciera con el juego en el estado guardado por el emulador.
+
 \begin{figure}[H]
 	\centering
-	\imgph{captura de \texttt{journalctl -u arcade-retroarch} con la caída y el reinicio (F1)}{3.5cm}
-	\caption{Recuperación de la falla F1.}
+	\includegraphics[width=0.95\columnwidth]{avance3/img/falla_f1.png}
+	\caption{Captura de \texttt{journalctl -u arcade-retroarch} mostrando la caída a las 12:50:30 y el reinicio automático a las 12:50:33.}
 	\label{fig:f1}
+\end{figure}
+
+Las Figuras \ref{fig:f1_jugando}, \ref{fig:f1_caido} y \ref{fig:f1_recuperado} muestran la secuencia visual de la falla y recuperación.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.75\columnwidth]{avance3/img/falla_f1_a_jugando.jpg}
+	\caption{Estado inicial: jugando Pac-Man antes de inducir la falla F1.}
+	\label{fig:f1_jugando}
 \end{figure}
 
 \begin{figure}[H]
 	\centering
-	\imgph{captura de \texttt{dmesg} o del log del puente al reconectar el control (F2)}{3.5cm}
-	\caption{Recuperación de la falla F2.}
-	\label{fig:f2}
+	\includegraphics[width=0.75\columnwidth]{avance3/img/falla_f1_b_caido.jpg}
+	\caption{Pantalla en negro tras el \texttt{kill -9} del proceso RetroArch.}
+	\label{fig:f1_caido}
 \end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.75\columnwidth]{avance3/img/falla_f1_c_recuperado.jpg}
+	\caption{Sistema recuperado: RetroArch relanzado automáticamente por systemd.}
+	\label{fig:f1_recuperado}
+\end{figure}
+
+\subsection{Falla F2: control USB desconectado}
+
+La falla F2 (desconexión física del control USB) está pendiente de validación hasta que el control embebido de la Pico esté completamente integrado con el sistema. El mecanismo de recuperación diseñado consiste en que el proceso \texttt{puente\_hid.py} intente reabrir \texttt{/dev/arcade\_hid} cada segundo hasta que el dispositivo vuelva a estar disponible.
