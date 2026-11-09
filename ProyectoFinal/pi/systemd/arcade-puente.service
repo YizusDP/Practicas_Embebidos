@@ -1,0 +1,16 @@
+# Puente socket UNIX -> reporte de salida HID (único proceso que escribe en el control).
+[Unit]
+Description=Arcade: puente de órdenes hacia la Pico
+PartOf=arcade.target
+Before=arcade-telemetria.service
+
+[Service]
+User=konan
+Group=konan
+SupplementaryGroups=input
+ExecStart=/usr/bin/python3 /opt/arcade/puente_hid.py
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=arcade.target

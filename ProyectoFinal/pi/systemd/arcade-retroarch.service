@@ -1,0 +1,31 @@
+# RetroArch en la pantalla TFT (DRM/KMS), sin entorno gráfico.
+[Unit]
+Description=Arcade: RetroArch con el juego en la TFT
+PartOf=arcade.target
+After=systemd-user-sessions.service
+# Ocupa tty1 en lugar de la consola con inicio automático, así las teclas
+# no llegan también a una terminal abierta.
+Conflicts=getty@tty1.service
+After=getty@tty1.service
+
+[Service]
+User=konan
+Group=konan
+SupplementaryGroups=video render input
+Environment=HOME=/home/konan
+EnvironmentFile=/etc/default/arcade
+# Clase 8: prioridad alta para la emulación (nice menor que la telemetría)
+Nice=-5
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+ExecStart=/usr/bin/retroarch --config /opt/arcade/ra_gl.cfg -L ${ARCADE_CORE} ${ARCADE_ROM}
+# Robustez (falla F1): si muere, systemd lo vuelve a lanzar
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=arcade.target

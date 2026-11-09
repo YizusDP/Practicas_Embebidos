@@ -1,0 +1,10 @@
+# Agrupa los tres servicios del arcade.
+#   Encender todo al arrancar: sudo systemctl enable arcade.target
+#   Apagarlo (para usar la Pi en otro proyecto): sudo systemctl disable --now arcade.target
+[Unit]
+Description=Arcade retro FSE (RetroArch + puente HID + telemetría)
+Wants=arcade-retroarch.service arcade-puente.service arcade-telemetria.service
+After=multi-user.target
+
+[Install]
+WantedBy=multi-user.target

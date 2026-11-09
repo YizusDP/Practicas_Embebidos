@@ -1,0 +1,17 @@
+# Lee la RAM del juego y manda órdenes al puente por socket UNIX.
+[Unit]
+Description=Arcade: telemetría del juego
+PartOf=arcade.target
+After=arcade-puente.service arcade-retroarch.service
+
+[Service]
+User=konan
+Group=konan
+# Clase 8: prioridad baja, nunca le quita tiempo a la emulación
+Nice=10
+ExecStart=/usr/bin/python3 /opt/arcade/telemetria.py
+Restart=always
+RestartSec=1
+
+[Install]
+WantedBy=arcade.target
