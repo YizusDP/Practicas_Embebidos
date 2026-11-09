@@ -18,7 +18,7 @@ El sistema fue sometido a dos pruebas de recuperación ante fallas para validar 
 		\hline
 		F1: proceso muerto & \texttt{sudo kill -9 \$(pidof retroarch)} & \texttt{systemd} lo relanza por \texttt{Restart=always} (\texttt{RestartSec=2}) & 3.4 s \\
 		\hline
-		F2: control desconectado & Se desconecta el USB del control en plena partida & RetroArch lo reconoce al reconectarlo; el puente reabre \texttt{/dev/arcade\_hid} & Pendiente \\
+		F2: control desconectado & Se desconecta el USB del control en plena partida & RetroArch lo reconoce al reconectarlo; el puente reabre \texttt{/dev/arcade\_hid} & En la demo \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -61,4 +61,4 @@ Las Figuras \ref{fig:f1_jugando}, \ref{fig:f1_caido} y \ref{fig:f1_recuperado} m
 
 \subsection{Falla F2: control USB desconectado}
 
-La falla F2 (desconexión física del control USB) está pendiente de validación hasta que el control embebido de la Pico esté completamente integrado con el sistema. El mecanismo de recuperación diseñado consiste en que el proceso \texttt{puente\_hid.py} intente reabrir \texttt{/dev/arcade\_hid} cada segundo hasta que el dispositivo vuelva a estar disponible.
+La falla F2 consiste en desconectar físicamente el USB del control en plena partida y volver a conectarlo; se demuestra en vivo durante la presentación. Al desconectarlo, el kernel elimina \texttt{/dev/input/eventX} y \texttt{/dev/arcade\_hid}, y la escritura del puente falla con un error que \texttt{puente\_hid.py} atrapa: el proceso no muere, cierra el dispositivo y reintenta abrir \texttt{/dev/arcade\_hid} cada segundo. Al reconectar, la regla de \texttt{udev} vuelve a crear el enlace, el puente lo reabre y RetroArch reconoce de nuevo el control por \texttt{udev}, sin reiniciar ningún servicio.
