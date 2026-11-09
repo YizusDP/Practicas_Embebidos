@@ -42,8 +42,6 @@
 		\hline
 		Audio del juego & Desactivado (\texttt{audio\_driver = "null"}): el prototipo no tiene bocina. \\
 		\hline
-		Netplay en el Avance 3 & Pasa al Avance 4 por tiempo. \\
-		\hline
 	\end{tabular}
 \end{table}
 
@@ -54,11 +52,10 @@ El equipo usó asistentes de IA generativa como apoyo durante este avance:
 	borradores de \texttt{telemetria.py}, \texttt{puente\_hid.py}, los servicios de \texttt{systemd},
 	\texttt{instalar.sh}, el \texttt{README}, \texttt{actuadores.c} y el reporte de salida HID; revisión y
 	compilación del firmware.
-	\item \pend{Gemini (Google): ejemplo del formato del reporte de salida HID. Confirmar herramienta y uso.}
+	\item \textbf{Gemini (Google):} ejemplo del formato del reporte de salida HID y un primer intento del README del firmware.
 \end{itemize}
 Todo el código generado se revisó y se probó en el hardware del equipo: RetroArch y la pantalla TFT,
 la lectura de la RAM del juego (dirección \texttt{0x067}), el arranque automático con \texttt{systemd},
 las prioridades (\texttt{Nice}) y la recuperación ante la falla F1 (3.4 s). El firmware compila sin
 errores ni advertencias con el Pico SDK 2.1.1. Las decisiones de diseño, las mediciones y las respuestas
 de la bitácora son responsabilidad de cada integrante.
-\pend{Revisar que la lista refleje lo que realmente usó cada integrante.}

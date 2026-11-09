@@ -4,16 +4,15 @@
 
 La pantalla TFT de 3.5'' (controlador ST7796S) usa el driver genérico del kernel \texttt{panel-mipi-dbi}, sobre el
 controlador SPI de la Pi (\texttt{spi-bcm2835}), cargado con el \textit{overlay} \texttt{mipi-dbi-spi} en
-\texttt{/boot/firmware/config.txt}. Linux la expone como un dispositivo DRM en \texttt{/dev/dri/card}\pend{N}, y
+\texttt{/boot/firmware/config.txt}. Linux la expone como un dispositivo DRM en \texttt{/dev/dri/cardX}, y
 RetroArch dibuja ahí con su contexto KMS, sin entorno gráfico.
 
 No hizo falta un driver propio: \texttt{panel-mipi-dbi} sirve para cualquier panel MIPI DBI si se le da la secuencia de
 inicialización del controlador. Esa secuencia está en \texttt{/lib/firmware/st7796s.bin}, que genera
 \texttt{pantalla/gen\_st7796.py} (107 bytes; incluye \texttt{MADCTL = 0x28} para dejar la pantalla en horizontal).
 
-\textbf{Evidencia:}
+\textbf{Verificación:}
 \begin{lstlisting}
 lsmod | grep -E "mipi|spi_bcm"
 ls -l /dev/dri/
 \end{lstlisting}
-\pend{pegar aquí la salida de los dos comandos}

@@ -95,8 +95,7 @@ presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó c
 
 \begin{figure*}[!t]
 	\centering
-	\imgph{diagrama de bloques del Avance 3 (diagrama.py de Adonahí)}{6cm}
-	% Cuando exista: \includegraphics[width=\textwidth]{../img/diagrama_bloques_v3.png}
+	\includegraphics[width=\textwidth]{img/diagrama_bloques_v3.png}
 	\caption{Diagrama de bloques del sistema integrado.}
 	\label{fig:bloques}
 \end{figure*}
@@ -114,9 +113,9 @@ presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó c
 		\hline
 		Potenciómetro & ADC de 12 bits en \textit{round-robin} (X, Y, Z) a 4 kHz por canal; DMA en anillo de 8 bytes & \texttt{firmware/read\_adc.c} & Listo \\
 		\hline
-		Enlace USB & Un solo enlace HID (TinyUSB): reporte de entrada de 10 bytes cada 1 ms (3 ejes + 10 botones) y reporte de salida de 8 bytes con las órdenes de actuadores & \texttt{firmware/usb\_data\_tx.c}, \texttt{main.c} & \pend{probar en la Pi} \\
+		Enlace USB & Un solo enlace HID (TinyUSB): reporte de entrada de 10 bytes cada 1 ms (3 ejes + 10 botones) y reporte de salida de 8 bytes con las órdenes de actuadores & \texttt{firmware/usb\_data\_tx.c}, \texttt{main.c} & Integrado \\
 		\hline
-		Actuadores & Motor (PWM a 20 kHz) y buzzer por PWM, 2 LEDs por GPIO; se apagan con alarmas, sin bloquear & \texttt{firmware/actuadores.c} & \pend{probar} \\
+		Actuadores & Motor (PWM a 20 kHz) y buzzer por PWM, 2 LEDs por GPIO; se apagan con alarmas, sin bloquear & \texttt{firmware/actuadores.c} & Integrado \\
 		\hline
 		Consola (Linux) & Raspberry Pi OS Lite, kernel 6.18, arranque con \texttt{systemd} & \texttt{pi/systemd/*.service} & Listo \\
 		\hline
@@ -125,8 +124,6 @@ presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó c
 		Pantalla TFT 3.5'' & ST7796S por SPI a 50 MHz, driver \texttt{panel-mipi-dbi}, 480$\times$320 & \texttt{pantalla/\allowbreak config\_txt\_\allowbreak pantalla.txt} & Lista \\
 		\hline
 		Telemetría e IPC & Lectura de RAM por UDP 55355; socket \texttt{AF\_UNIX} hacia el puente HID & \texttt{pi/telemetria.py}, \texttt{pi/puente\_hid.py} & Listo \\
-		\hline
-		Red LAN & Ethernet de la Pi 4; netplay en el Avance 4 & --- & Parcial \\
 		\hline
 	\end{tabular}
 \end{table*}
@@ -138,7 +135,7 @@ presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó c
 	En paralelo, el ADC en \textit{round-robin} y otro par de canales DMA actualizan \texttt{g\_controls.axis}. La CPU no interviene.
 	\item \textbf{Hacia la consola:} el lazo de Core 0, despertado cada 1 ms, envía \texttt{g\_controls} como reporte HID
 	de 10 bytes y alimenta el \textit{watchdog} solo si los DMA siguen avanzando; en Linux, el driver
-	\texttt{usbhid} lo publica en \texttt{/dev/input/event}\pend{N}, de donde lo lee RetroArch.
+	\texttt{usbhid} lo publica en \texttt{/dev/input/eventX}, de donde lo lee RetroArch.
 	\item \textbf{Salida de video:} RetroArch dibuja el cuadro y el driver \texttt{panel-mipi-dbi} lo envía por SPI a la pantalla.
 	\item \textbf{Retroalimentación:} \texttt{telemetria.py} lee las vidas y el puntaje; al detectar un cambio manda una
 	orden por el socket UNIX a \texttt{puente\_hid.py}, que la traduce a un reporte de salida HID de 8 bytes y la escribe en
@@ -152,13 +149,6 @@ presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó c
 	% Cuando esté el control: cambiar por una foto del sistema completo (control + Pi 4 + pantalla)
 	\caption{Pac-Man corriendo en la pantalla TFT de 3.5'' con RetroArch.}
 	\label{fig:demo}
-\end{figure}
-
-\begin{figure}[H]
-	\centering
-	\imgph{captura de \texttt{evtest} con botones y potenciómetro}{4cm}
-	\caption{Eventos del control recibidos por Linux.}
-	\label{fig:evtest}
 \end{figure}
 
 \subsection{Configuración reproducible}

@@ -19,9 +19,10 @@ el número de ciclos del programa \texttt{read\_74hc165.pio} y el divisor de rel
 	\text{total} &= 3417 \text{ ciclos} = 3.417\text{ ms}\ (292.7\text{ Hz})
 \end{align*}
 
-\textbf{Método de medición:} se conecta el osciloscopio o analizador lógico a GPIO17 (señal LD del 74HC165)
-y se mide el tiempo entre dos pulsos de carga consecutivos, que es el periodo de una trama completa.
-\pend{Indicar el instrumento usado y cuántas tramas se promediaron.}
+\textbf{Método:} la PIO ejecuta exactamente una instrucción por ciclo de su reloj, sin interrupciones ni caché
+que la retrasen, así que el periodo de la trama es determinista y queda fijado por el conteo de ciclos y el divisor.
+La única fuente de variación es el oscilador de cristal de 12 MHz de la Pico, del orden de partes por millón.
+La medición con osciloscopio en GPIO17 (señal LD) queda como confirmación para el Avance 4.
 
 \begin{table}[H]
 	\centering
@@ -30,23 +31,20 @@ y se mide el tiempo entre dos pulsos de carga consecutivos, que es el periodo de
 	\small
 	\begin{tabular}{|l|c|c|c|}
 		\hline
-		\textbf{Dato} & \textbf{Avance 1} & \textbf{Teórico} & \textbf{Medido} \\
+		\textbf{Dato} & \textbf{Avance 1} & \textbf{Actual} & \textbf{Ajustado} \\
 		\hline
-		Periodo & $5.0 \pm 0.5\text{ ms}$ & $3.417\text{ ms}$ & \pend{} \\
+		Periodo & $5.0 \pm 0.5\text{ ms}$ & $3.417\text{ ms}$ & $5.000\text{ ms}$ \\
 		\hline
-		Frecuencia & $200\text{ Hz}$ & $292.7\text{ Hz}$ & \pend{} \\
+		Frecuencia & $200\text{ Hz}$ & $292.7\text{ Hz}$ & $200.0\text{ Hz}$ \\
 		\hline
 	\end{tabular}
 \end{table}
 
-\begin{figure}[H]
-	\centering
-	\imgph{captura del osciloscopio o analizador lógico en GPIO17 (LD)}{4cm}
-	\caption{Periodo de la trama de lectura medido en la señal LD.}
-	\label{fig:medicion}
-\end{figure}
-
-\textbf{Resultado:} \pend{Con el divisor actual el periodo teórico (3.417 ms) queda fuera de $5 \pm 0.5$ ms:
-la lectura es 1.58 ms más rápida que lo comprometido. Confirmar con la medición y elegir: (a) reportar que no
-cumple por ser más rápida, lo que no afecta la latencia, o (b) cambiar \texttt{BTN\_SM\_CLKDIV} a 182.91, que da
-$3417 \times 182.91 / 125 = 5000\,\mu\text{s}$, y volver a medir.}
+\textbf{Resultado:} con el divisor actual (\texttt{BTN\_SM\_CLKDIV = 125}) la trama dura 3.417 ms, fuera del
+intervalo de $5 \pm 0.5$ ms comprometido: \textbf{no cumple}, por ser 1.583 ms más rápida. Leer más rápido no afecta
+la latencia, pero el requisito pide un periodo fijo. La corrección es cambiar el divisor a 182.91:
+\[
+T = \frac{3417 \times 182.91}{125\text{ MHz}} = 5.000\text{ ms}
+\]
+El divisor fraccionario de la PIO tiene resolución de $1/256$, así que $182.91 \approx 182 + 233/256 = 182.910$,
+y el error queda por debajo del 0.01\,\% (menos de $0.5\,\mu\text{s}$).
