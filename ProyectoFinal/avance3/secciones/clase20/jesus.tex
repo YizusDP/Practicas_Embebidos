@@ -9,10 +9,10 @@ El driver \texttt{panel-mipi-dbi} lo convierte a RGB565 (16 bits por píxel) ant
 cuadro que viaja a la pantalla mide $480 \times 320 \times 2 = 307\,200$ B, la mitad.
 
 Con el SPI a 50 MHz (\texttt{config\_txt\_pantalla.txt}, línea 3):
-\[
-t_{\text{cuadro}} = \frac{307\,200 \times 8\text{ bits}}{50 \times 10^{6}\text{ bit/s}} = 49.15\text{ ms}
-\quad\Rightarrow\quad 20.35\text{ FPS máximo}
-\]
+\begin{align*}
+t_{\text{cuadro}} &= \frac{307\,200 \times 8\text{ bits}}{50 \times 10^{6}\text{ bit/s}} = 49.15\text{ ms} \\
+f_{\text{máx}} &= 1 / 49.15\text{ ms} = 20.35\text{ FPS}
+\end{align*}
 Los 18.3 FPS medidos en el Avance 2 son el 89.9\,\% de ese máximo: el límite de la pantalla es el bus SPI.
 
 \texttt{volatile} no aparece en esta parte porque no hay código C propio del lado de la Pi: el acceso a los

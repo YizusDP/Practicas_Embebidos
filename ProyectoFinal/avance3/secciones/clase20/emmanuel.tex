@@ -7,7 +7,7 @@ chico que la contiene. El DMA copia con \texttt{DMA\_SIZE\_16} (\texttt{read\_ad
 cae completa en un solo elemento y nunca queda a medias. Se muestrean 4 canales en \textit{round-robin}
 (\texttt{read\_adc.c}, línea 46) aunque solo hay 3 ejes: el cuarto (ADC3) completa un anillo de
 $4 \times 2 = 8 = 2^3$ bytes, porque el anillo del DMA (\texttt{read\_adc.c}, línea 22) solo acepta tamaños
-potencia de 2. Por eso \texttt{g\_controls} lleva \texttt{\_\_attribute\_\_((aligned(8)))} (\texttt{main.c}, línea 19):
+potencia de 2. Por eso \texttt{g\_controls} lleva \texttt{\_\_attribute\_\_((aligned(8)))} (\texttt{main.c}, línea 24):
 el anillo exige que su dirección sea múltiplo de 8.
 
 La frecuencia es de 4000 muestras por segundo por canal, o sea 16\,000 conversiones por segundo en total. Como el

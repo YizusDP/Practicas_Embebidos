@@ -5,7 +5,8 @@
 \textbf{Botones:} driver propio en la Pico (\texttt{read\_74hc165.c} y \texttt{read\_74hc165.pio}). El genérico no alcanza:
 el periférico SPI no genera el pulso de carga paralela (LD) que el 74HC165 necesita antes de cada lectura. La PIO genera
 LD y el reloj, arma tramas de 10 bits con \textit{autopush}, y dos canales DMA encadenados
-(\texttt{read\_74hc165.c}, línea 60) las copian a \texttt{g\_controls.buttons} sin CPU.
+(\texttt{read\_74hc165.c}, línea 60) las copian a \texttt{g\_controls.buttons} sin CPU. Cómo compilarlo y grabarlo
+está en \texttt{firmware/README.md}.
 
 \textbf{Enlace USB:} en la Pico, la pila TinyUSB en modo dispositivo HID (\texttt{usb\_data\_tx.c}). En la Pi no hace
 falta driver propio: el kernel reconoce el descriptor HID y carga los genéricos \texttt{usbhid} y \texttt{hid-generic}, que

@@ -122,7 +122,7 @@ presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó c
 		\hline
 		Emulación & RetroArch con driver \texttt{gl} sobre DRM & \texttt{pantalla/ra\_gl.cfg} & Listo \\
 		\hline
-		Pantalla TFT 3.5'' & ST7796S por SPI a 50 MHz, driver \texttt{panel-mipi-dbi}, 480$\times$320 & \texttt{pantalla/config\_txt\_pantalla.txt} & Lista \\
+		Pantalla TFT 3.5'' & ST7796S por SPI a 50 MHz, driver \texttt{panel-mipi-dbi}, 480$\times$320 & \texttt{pantalla/\allowbreak config\_txt\_\allowbreak pantalla.txt} & Lista \\
 		\hline
 		Telemetría e IPC & Lectura de RAM por UDP 55355; socket \texttt{AF\_UNIX} hacia el puente HID & \texttt{pi/telemetria.py}, \texttt{pi/puente\_hid.py} & Listo \\
 		\hline
@@ -196,15 +196,15 @@ La Tabla~\ref{tab:bitacora} resume dónde quedó cada decisión. Las entradas fi
 		\hline
 		\textbf{Clase} & \textbf{Planeado (Avance 1)} & \textbf{Construido} & \textbf{Archivo:línea} & \textbf{Diferencia y causa} \\
 		\hline
-		8 Pico & Lectura de botones por interrupción de temporizador cada 5 ms, prioridad alta & La lectura no usa CPU: PIO + DMA encadenado trabajan solos; la CPU solo atiende USB y \textit{watchdog}, despertada cada 1 ms & \texttt{read\_74hc165.c:60},\newline\texttt{main.c:46} & No hay tarea periódica: el hardware reemplaza a la interrupción. El periodo lo fija el divisor de la PIO (3.42 ms con el divisor actual) \\
+		8 Pico & Lectura de botones por interrupción de temporizador cada 5 ms, prioridad alta & La lectura no usa CPU: PIO + DMA encadenado trabajan solos; la CPU solo atiende USB y \textit{watchdog}, despertada cada 1 ms & \texttt{read\_74hc165.c:60},\newline\texttt{main.c:51} & No hay tarea periódica: el hardware reemplaza a la interrupción. El periodo lo fija el divisor de la PIO (3.42 ms con el divisor actual) \\
 		\hline
-		8 Pi 4 & RetroArch con \textit{nice} menor que la telemetría & \texttt{Nice=-5} en RetroArch, \texttt{Nice=10} en telemetría & \texttt{arcade-retroarch.service:18},\newline\texttt{arcade-telemetria.service:11} & Ninguna \\
+		8 Pi 4 & RetroArch con \textit{nice} menor que la telemetría & \texttt{Nice=-5} en RetroArch, \texttt{Nice=10} en telemetría & \texttt{arcade-\allowbreak retroarch.service:18},\newline\texttt{arcade-\allowbreak telemetria.service:11} & Ninguna \\
 		\hline
-		9 Pico & Mutex de hardware sobre el reporte HID & Sin candado: el DMA escribe cada campo de 16 bits en una sola transferencia y el USB copia campo por campo con lecturas de 16 bits & \texttt{main.c:19},\newline\texttt{usb\_data\_tx.c:28} & Un mutex no protege contra el DMA, que no toma candados; la escritura atómica de 16 bits evita valores partidos \\
+		9 Pico & Mutex de hardware sobre el reporte HID & Sin candado: el DMA escribe cada campo de 16 bits en una sola transferencia y el USB copia campo por campo con lecturas de 16 bits & \texttt{main.c:24},\newline\texttt{usb\_data\_tx.c:32} & Un mutex no protege contra el DMA, que no toma candados; la escritura atómica de 16 bits evita valores partidos \\
 		\hline
 		9 Pi 4 & Triple buffer con semáforos POSIX & Lo resuelve RetroArch con DRM; además, el puente es el único proceso que escribe en el control & \texttt{ra\_gl.cfg:3261},\newline\texttt{puente\_hid.py:105} & No es código nuestro; se configura con \texttt{video\_max\_swapchain\_images = "3"} \\
 		\hline
-		11 & Socket \texttt{AF\_UNIX DGRAM} expuesto por RetroArch & RetroArch expone UDP 55355; el socket UNIX une telemetría y puente & \texttt{telemetria.py:44},\newline\texttt{puente\_hid.py:73},\newline\texttt{usb\_data\_tx.c:194} & RetroArch no ofrece socket UNIX. Las órdenes llegan a la Pico como reporte de salida HID (se descartó un serial CDC para respetar el diagrama) \\
+		11 & Socket \texttt{AF\_UNIX DGRAM} expuesto por RetroArch & RetroArch expone UDP 55355; el socket UNIX une telemetría y puente & \texttt{telemetria.py:44},\newline\texttt{puente\_hid.py:73},\newline\texttt{usb\_data\_tx.c:197} & RetroArch no ofrece socket UNIX. Las órdenes llegan a la Pico como reporte de salida HID (se descartó un serial CDC para respetar el diagrama) \\
 		\hline
 	\end{tabular}
 \end{table*}
