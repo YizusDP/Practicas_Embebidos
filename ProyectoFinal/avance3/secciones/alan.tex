@@ -10,12 +10,12 @@
 \begin{itemize}
     \item \texttt{telemetria.py} pide la RAM del juego a RetroArch por UDP en \texttt{127.0.0.1:55355} (línea 50).
     \item Envía cada orden como datagrama a \texttt{/tmp/arcade\_act.sock} (línea 61).
-    \item \texttt{puente\_serial.py} recibe el datagrama y lo escribe en \texttt{/dev/ttyACM0} (línea 83).
+    \item \texttt{puente\_hid.py} recibe el datagrama (socket en la línea 73), lo traduce a un reporte de salida HID de 8 bytes (línea 46) y lo escribe en \texttt{/dev/arcade\_hid} (línea 105)[cite: 23].
 \end{itemize}
 
 \textbf{Direcciones de RAM usadas:} Pac-Man (core Nestopia), dirección \texttt{0x067}, significa el contador de vidas del jugador (empieza en 3 y baja 1 con cada muerte).
 
-\textbf{Diferencias:} RetroArch no ofrece un socket UNIX, sino un servidor de comandos por UDP en el puerto 55355; por lo tanto, el socket UNIX quedó implementado de manera interna como un puente entre nuestros dos procesos de Python.
+\textbf{Diferencias:} RetroArch no ofrece un socket UNIX, sino un servidor de comandos por UDP en el puerto 55355; por lo tanto, el socket UNIX quedó implementado de manera interna como un puente entre nuestros dos procesos de Python. En el Avance 3 primero se usó un serial CDC para las órdenes; se cambió a reportes de salida HID para respetar el diagrama (un solo enlace USB HID)[cite: 23].
 
 \subsection{Declaración de uso de IA}
 Para la elaboración de este avance, utilicé asistencia de Inteligencia Artificial para verificar la correcta ejecución de los commits solicitados y estructurar los textos de esta bitácora.
