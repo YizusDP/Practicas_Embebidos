@@ -3,9 +3,24 @@
 #include <stddef.h>
 #include "pico/unique_id.h"
 #include "hardware/dma.h"
-#include "hardware/sync.h"
 #include "hardware/structs/usb.h"
 #include "usb_data_tx.h"
+
+
+#include "actuadores.h"
+
+/* Reporte de salida (Pi -> Pico), 8 bytes, enteros en little-endian:
+   byte 0 = comando
+     1 VIB : bytes 1-2 = ms
+     2 BUZ : bytes 1-2 = Hz, bytes 3-4 = ms
+     3 LED : byte 1 = id (1 o 2), byte 2 = estado (0 o 1)
+   El resto de los bytes van en 0. */
+#define ACT_REPORT_SIZE  8
+#define CMD_VIB          1
+#define CMD_BUZ          2
+#define CMD_LED          3
+
+
 
 static const volatile controls_report_t *s_src = NULL;
 
@@ -28,9 +43,7 @@ static void controls_snapshot(controls_report_t *dst) {
 /* Descriptor de reporte HID (10 bytes, sin Report ID)              
   bytes 0-5 : X, Y, Z  (3 x 16 bits, 0..4095)                     
  bytes 6-7 : constante (ADC3 / VSYS, diagnóstico; el host lo omite)
-  bytes 8-9 : 10 botones + 6 bits de relleno
-  Reporte de SALIDA (host -> Pico, 8 bytes, sin Report ID): telemetría.
-  byte 0 = comando; ver usb_data_tx.h                               */
+  bytes 8-9 : 10 botones + 6 bits de relleno                        */
 
 static const uint8_t desc_hid_report[] = {
     0x05, 0x01,         // Usage Page (Generic Desktop)
@@ -64,13 +77,13 @@ static const uint8_t desc_hid_report[] = {
     0x95, 0x06,         //   Report Count (6)
     0x81, 0x03,         //   Input (Const, Var, Abs)  -> relleno
 
-    // Reporte de salida: 8 bytes de datos propios (telemetría Pi -> Pico)
+  // Reporte de SALIDA (Pi -> Pico): órdenes de actuadores, 8 bytes
     0x06, 0x00, 0xFF,   //   Usage Page (Vendor Defined 0xFF00)
-    0x09, 0x01,         //   Usage (Vendor Usage 1)
+    0x09, 0x01,         //   Usage (0x01)
     0x15, 0x00,         //   Logical Minimum (0)
     0x26, 0xFF, 0x00,   //   Logical Maximum (255)
     0x75, 0x08,         //   Report Size (8)
-    0x95, TELEMETRY_REPORT_SIZE, //   Report Count (8)
+    0x95, ACT_REPORT_SIZE, //   Report Count (8)
     0x91, 0x02,         //   Output (Data, Var, Abs)
 
     0xC0                // End Collection
@@ -175,89 +188,20 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
     return n;
 }
 
-/* Cola de comandos de telemetría (productor: tud_hid_set_report_cb, que corre dentro de
- * tud_task(); consumidor: usb_data_tx_get_command(), llamado desde el lazo de main.c).
- * Es un anillo de un productor y un consumidor: head solo lo mueve el productor y tail
- * solo el consumidor, así que no necesita candados. Tamaño potencia de 2. */
-#define TELEMETRY_QUEUE_LEN  8u
-
-static telemetry_cmd_t s_cmd_q[TELEMETRY_QUEUE_LEN];
-static volatile uint8_t s_cmd_head = 0;
-static volatile uint8_t s_cmd_tail = 0;
-
-static void cmd_push(const telemetry_cmd_t *cmd) {
-    uint8_t head = s_cmd_head;
-    uint8_t next = (uint8_t)((head + 1u) & (TELEMETRY_QUEUE_LEN - 1u));
-    if (next == s_cmd_tail) return;     // cola llena: se descarta el comando nuevo
-    s_cmd_q[head] = *cmd;
-    __dmb();                            // el dato debe quedar escrito antes de mover head
-    s_cmd_head = next;
-}
-
-bool usb_data_tx_get_command(telemetry_cmd_t *out) {
-    uint8_t tail = s_cmd_tail;
-    if (tail == s_cmd_head) return false;
-    *out = s_cmd_q[tail];
-    __dmb();
-    s_cmd_tail = (uint8_t)((tail + 1u) & (TELEMETRY_QUEUE_LEN - 1u));
-    return true;
-}
-
-// Entero de 16 bits little-endian (como lo arma puente_hid.py con struct "<H")
-static inline uint16_t le16(const uint8_t *p) {
-    return (uint16_t)(p[0] | (p[1] << 8));
-}
-
-/* Decodifica un reporte de salida de 8 bytes. Regresa false si el comando es desconocido
- * o sus argumentos no son válidos (en ese caso no se encola nada). */
-static bool telemetry_decode(const uint8_t r[TELEMETRY_REPORT_SIZE], telemetry_cmd_t *cmd) {
-    memset(cmd, 0, sizeof(*cmd));
-    cmd->type = r[0];
-
-    switch (r[0]) {
-    case TELEMETRY_CMD_VIB:                 // 1-2 = ms
-        cmd->ms = le16(&r[1]);
-        return true;
-    case TELEMETRY_CMD_BUZ:                 // 1-2 = Hz, 3-4 = ms
-        cmd->hz = le16(&r[1]);
-        cmd->ms = le16(&r[3]);
-        return true;
-    case TELEMETRY_CMD_LED:                 // 1 = id (1 o 2), 2 = estado (0 o 1)
-        if (r[1] < 1 || r[1] > TELEMETRY_NUM_LEDS || r[2] > 1) return false;
-        cmd->led_id = r[1];
-        cmd->led_on = r[2];
-        return true;
-    default:
-        return false;
-    }
-}
-
-/* SET_REPORT / salida del host. Por acá llega la telemetría (Pi -> Pico).
- * Aquí SOLO se decodifica y se encola; los actuadores los mueve main.c con
- * usb_data_tx_get_command() para no gastar tiempo dentro de tud_task(). */
+//SET_REPORT / salida del host. Por acá llegará la telemetría
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
                            hid_report_type_t report_type,
                            const uint8_t *buffer, uint16_t bufsize) {
-    (void)instance; (void)report_id;
+    (void)instance;
+    (void)report_id;
 
-    // Solo reportes de salida (según la versión de TinyUSB, por el endpoint de control
-    // puede llegar como OUTPUT o como INVALID)
-    if (report_type != HID_REPORT_TYPE_OUTPUT && report_type != HID_REPORT_TYPE_INVALID) return;
-    if (buffer == NULL || bufsize == 0) return;
+    if (report_type != HID_REPORT_TYPE_OUTPUT || bufsize < ACT_REPORT_SIZE) return;
 
-    // Por si el host mandó el byte de Report ID (0) al frente: el control no usa Report ID
-    if (bufsize == TELEMETRY_REPORT_SIZE + 1 && buffer[0] == 0) {
-        buffer++;
-        bufsize--;
-    }
-
-    // Se copia a 8 bytes rellenando con ceros por si llegó un reporte más corto
-    uint8_t raw[TELEMETRY_REPORT_SIZE] = {0};
-    memcpy(raw, buffer, bufsize < TELEMETRY_REPORT_SIZE ? bufsize : TELEMETRY_REPORT_SIZE);
-
-    telemetry_cmd_t cmd;
-    if (telemetry_decode(raw, &cmd)) {
-        cmd_push(&cmd);
+    switch (buffer[0]) {
+        case CMD_VIB: actuadores_vib(buffer[1]);                    break;
+        case CMD_BUZ: actuadores_buz(buffer[1], buffer[3]); break;
+        case CMD_LED: actuadores_led(buffer[1], buffer[2] != 0);           break;
+        default:      break;      // comando desconocido: se ignora
     }
 }
 
