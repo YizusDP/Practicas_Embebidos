@@ -1,0 +1,42 @@
+;Actualización del código pio:
+; Ya no hay `push`: al completarse el 10.º `in` el hardware empuja una palabra a la
+; RX FIFO con los 10 bits en los bits bajos (el primero leído, bit H, queda en el bit 9).
+.program read_74hc165
+;Esta decisión se tomó para la optimización de la memoria de insutrcciones.
+.wrap_target
+    ; Carga paralela: LD = 0, CLK = 0 (Binario 00)
+    set pins, 0 [31]
+    set pins, 0 [31]
+    
+    ; Liberar Carga: LD = 1, CLK = 0 (Binario 01)
+    set pins, 1 [31]   
+    set pins, 1 [31]
+    
+    ; Leer el bit H inmediatamente
+    in pins, 1
+    
+    ; Bucle para los 9 bits restantes
+    set x, 8
+bit_loop:
+    ; Flanco de subida: CLK = 1, LD = 1 (Binario 11) -> Desplaza
+    set pins, 3 [31]
+    set pins, 3 [31]
+    
+    ; Flanco de bajada: CLK = 0, LD = 1 (Binario 01)
+    set pins, 1 [31]
+    set pins, 1 [31]
+    
+    ; Leer el nuevo bit en Q7 (el 10.º dispara el autopush)
+    in pins, 1
+    
+    jmp x-- bit_loop
+
+    ; Pausa entre capturas completas
+    set y, 1
+delay_between_reads:
+    set x, 31
+sub_delay:
+    nop [31]
+    jmp x-- sub_delay
+    jmp y-- delay_between_reads
+.wrap
