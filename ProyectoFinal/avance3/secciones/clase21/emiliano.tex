@@ -4,13 +4,15 @@
 
 \textbf{En la Pico} (\texttt{actuadores.c}): el motor (GP15) y el buzzer (GP12) usan \texttt{hardware/pwm}, en
 \textit{slices} distintos para que el buzzer pueda cambiar de frecuencia sin afectar al motor; los LEDs (GP10 y GP11)
-usan \texttt{hardware/gpio}; el apagado lo hace una alarma de \texttt{pico/time} (\texttt{actuadores.c}, líneas 61 y 72),
+usan \texttt{hardware/gpio}; el apagado lo hace una alarma de \texttt{pico/time} (\texttt{actuadores.c}, líneas 66 y 88),
 así ninguna orden bloquea el lazo principal. Son bibliotecas del Pico SDK sobre los registros; no hace falta un driver propio.
 
 \textbf{En la Pi:} las órdenes no usan un dispositivo nuevo, sino el mismo control HID. El puente escribe el reporte de
 salida en \texttt{/dev/hidraw}\pend{N} (driver genérico \texttt{hidraw}), y el kernel lo entrega a la Pico como
 \texttt{SET\_REPORT} por el \textit{endpoint} de control. En la Pico lo recibe \texttt{tud\_hid\_set\_report\_cb()}
-(\texttt{usb\_data\_tx.c}, línea 194).
+(\texttt{usb\_data\_tx.c}, línea 197). Para probar los actuadores sin la telemetría está
+\texttt{firmware/prueba\_actuadores.py}, que abre el control con \texttt{hidapi} (VID \texttt{cafe}, PID \texttt{4001}) y manda
+las mismas órdenes desde un menú.
 
 \textbf{Evidencia:}
 \begin{lstlisting}

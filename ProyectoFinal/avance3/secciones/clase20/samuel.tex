@@ -5,19 +5,19 @@
 La imagen de los controles es \texttt{controls\_report\_t} (\texttt{controls\_report.h}, líneas 17 a 20):
 cuatro ejes y los botones, todos \texttt{uint16\_t}. Los 10 botones de los dos 74HC165 no caben en 8 bits,
 por eso \texttt{buttons} es de 16; los 6 bits de sobra se limpian con la máscara \texttt{0x03FF} antes de enviar
-(\texttt{usb\_data\_tx.c}, línea 35). La estructura mide $4 \times 2 + 2 = 10$ bytes sin relleno, y el compilador
+(\texttt{usb\_data\_tx.c}, línea 39). La estructura mide $4 \times 2 + 2 = 10$ bytes sin relleno, y el compilador
 lo verifica con \texttt{\_Static\_assert(sizeof(controls\_report\_t) == 10)} (\texttt{controls\_report.h}, línea 31).
 Esos 10 bytes son exactamente el reporte de entrada HID que recibe la Pi, así que no hay que convertir nada antes de enviar.
 
-\texttt{volatile} está en \texttt{g\_controls} (\texttt{main.c}, línea 19) porque la escriben los DMA de la PIO y del
+\texttt{volatile} está en \texttt{g\_controls} (\texttt{main.c}, línea 24) porque la escriben los DMA de la PIO y del
 ADC sin pasar por la CPU: el compilador no ve ninguna escritura en el código y, sin \texttt{volatile}, podría
 quedarse con un valor viejo en un registro. Por lo mismo, \texttt{controls\_snapshot()} lee campo por campo con un
-puntero \texttt{volatile uint16\_t} (\texttt{usb\_data\_tx.c}, línea 29), y el búfer del \textit{endpoint} en la DPSRAM
-también es \texttt{volatile} (línea 225), porque lo lee el controlador USB por hardware.
+puntero \texttt{volatile uint16\_t} (\texttt{usb\_data\_tx.c}, línea 33), y el búfer del \textit{endpoint} en la DPSRAM
+también es \texttt{volatile} (línea 228), porque lo lee el controlador USB por hardware.
 
 \textbf{Tamaño del firmware} (Pico SDK 2.1.1, \texttt{arm-none-eabi-size}):
 \begin{lstlisting}
    text    data     bss     dec     hex filename
-  23468       0    3520   26988    696c arcade_ctrl.elf
+  23476       0    3520   26996    6974 arcade_ctrl.elf
 \end{lstlisting}
-Ocupa 23\,468 B de Flash (1.1\,\% de 2 MB) y 3\,520 B de RAM estática (1.3\,\% de 264 KB).
+Ocupa 23\,476 B de Flash (1.1\,\% de 2 MB) y 3\,520 B de RAM estática (1.3\,\% de 264 KB).

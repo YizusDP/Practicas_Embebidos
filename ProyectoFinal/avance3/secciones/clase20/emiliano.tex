@@ -3,7 +3,7 @@
 \textbf{Autor:} García Olvera Emiliano
 
 Las órdenes llegan en un reporte de salida HID de 8 bytes (\texttt{uint8\_t}). Las duraciones y frecuencias viajan
-como \texttt{uint16\_t} en \textit{little-endian} (máximo 65\,535) y se arman con \texttt{le16()}; el firmware acepta
+como \texttt{uint16\_t} en \textit{little-endian} (máximo 65\,535) y se arman con \texttt{le16()} (\texttt{usb\_data\_tx.c}, línea 193); el firmware acepta
 de 1 a 5000 ms y de 100 a 5000 Hz (\texttt{actuadores.h}). El \textit{wrap} del PWM del buzzer también es de 16 bits:
 \begin{align*}
 \text{wrap} &= \frac{125\text{ MHz}}{64 \times f} - 1 \\
@@ -16,5 +16,5 @@ por encima de lo audible.
 
 \texttt{volatile} está en \texttt{s\_alarma\_motor} y \texttt{s\_alarma\_buzzer} (\texttt{actuadores.c}, líneas 19 y 20):
 las pone en 0 la alarma (una interrupción del temporizador) cuando apaga el actuador, y las lee el código normal
-para cancelar la alarma anterior si llega otra orden. Sin \texttt{volatile}, el compilador podría usar un valor
-viejo y cancelar una alarma que ya no existe.
+para cancelar la alarma anterior si llega otra orden (\texttt{actuadores.c}, líneas 60 y 80: solo se cancela si sigue
+activa, \texttt{> 0}). Sin \texttt{volatile}, el compilador podría usar un valor viejo y cancelar una alarma que ya no existe.
