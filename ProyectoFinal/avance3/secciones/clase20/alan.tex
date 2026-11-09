@@ -1,0 +1,13 @@
+% Clase 20 — Jiménez Reyes Alan Yael (telemetría e IPC)
+\paragraph{Telemetría y puente}
+\textbf{Autor:} Jiménez Reyes Alan Yael
+
+La telemetría lee un solo byte de la RAM del NES (vidas, dirección \texttt{0x067}): RetroArch lo regresa como texto
+hexadecimal y \texttt{telemetria.py} lo convierte con \texttt{int(..., 16)} a un valor de 0 a 255. El puente arma el
+reporte de salida con \texttt{struct.pack} (\texttt{puente\_hid.py}, línea 46): \texttt{B} es \texttt{uint8\_t} y
+\texttt{H} es \texttt{uint16\_t}, y el prefijo \texttt{<} fuerza \textit{little-endian}, el mismo orden en que la Pico
+los rearma con \texttt{le16()}. Por ejemplo, \texttt{VIB 300} viaja como \texttt{01 2c 01 00 00 00 00 00}
+($\texttt{0x012C} = 300$). El reporte se rellena con ceros hasta 8 bytes, el tamaño que declara el descriptor HID.
+
+En Python no hay \texttt{volatile}: el intérprete siempre lee la variable de memoria, y cada proceso tiene su propia
+memoria. Los dos procesos solo comparten datos por el socket UNIX.

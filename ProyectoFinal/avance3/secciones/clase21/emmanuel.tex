@@ -1,0 +1,18 @@
+% Clase 21 — Dorantes Mejía Emmanuel (potenciómetro / ADC)
+\paragraph{Potenciómetro (ADC)}
+\textbf{Autor:} Dorantes Mejía Emmanuel
+
+Se desarrollaron los archivos \texttt{read\_adc.c} y \texttt{read\_adc.h} para implementar la adquisición continua de
+señales analógicas mediante el ADC de 12 bits de la Raspberry Pi Pico.
+
+La implementación configura los canales ADC0, ADC1, ADC2 y ADC3 mediante muestreo \textit{round-robin}, con una
+frecuencia configurada de 4000 muestras por segundo por canal. Se utilizan dos canales DMA encadenados para transferir
+automáticamente las muestras hacia un búfer circular de cuatro elementos de 16 bits, reduciendo la intervención de la CPU.
+
+El archivo \texttt{read\_adc.c} contiene la inicialización del ADC, la configuración del DMA y la función
+\texttt{read\_adc\_is\_alive()}, que permite supervisar el avance de las transferencias para el \textit{watchdog}.
+Por su parte, \texttt{read\_adc.h} define las constantes de configuración y declara las funciones del módulo.
+
+\textbf{Driver:} se usan las bibliotecas \texttt{hardware/adc} y \texttt{hardware/dma} del Pico SDK, que escriben
+directo en los registros del microcontrolador; no hay kernel ni driver de Linux en la Pico. No hace falta un driver
+propio porque el ADC del RP2040 ya ofrece \textit{round-robin}, FIFO y petición de DMA (DREQ).

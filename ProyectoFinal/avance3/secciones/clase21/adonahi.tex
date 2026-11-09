@@ -1,0 +1,11 @@
+% Clase 21 — Hernández Alonso Antonio Adonahí (arranque y sistema)
+\paragraph{Permisos de los dispositivos}
+\textbf{Autor:} Hernández Alonso Antonio Adonahí
+
+Los programas del arcade corren como el usuario \texttt{konan}, no como \textit{root}, así que necesitan permiso
+para abrir los dispositivos. Para la pantalla y el teclado o control basta con los grupos \texttt{video},
+\texttt{render} e \texttt{input}. Para las órdenes, \texttt{instalar.sh} crea la regla de \texttt{udev}
+\texttt{/etc/udev/rules.d/99-arcade.rules}: cuando aparece el \texttt{hidraw} con VID \texttt{cafe} y PID
+\texttt{4001}, le da permiso al grupo \texttt{input} y crea el enlace fijo \texttt{/dev/arcade\_hid}. Así el puente
+no depende de si el control quedó como \texttt{hidraw0} o \texttt{hidraw1}, y al reconectarlo (falla F2) el enlace
+vuelve a apuntar al dispositivo nuevo.

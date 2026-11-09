@@ -6,7 +6,12 @@
 
 \subsection{Pendientes para el Avance 4}
 \begin{itemize}
-	\item \pend{netplay en LAN, latencia de extremo a extremo, gabinete impreso, raíz en solo lectura...}
+	\item \textbf{Netplay en LAN:} partida entre dos consolas; medir RNF3 (ping $<$ 5 ms y 0\,\% de pérdida).
+	\item \textbf{Latencia de extremo a extremo:} medir del botón a la pantalla contra el requisito de $\leq$ 15 ms.
+	\item \textbf{Periodo de lectura:} ajustar el divisor de la PIO para cumplir $5 \pm 0.5$ ms y volver a medir.
+	\item \textbf{Segundo juego:} agregar Pong usando el potenciómetro como paleta.
+	\item \textbf{Gabinete:} imprimir en 3D las piezas ya modeladas y montar el sistema.
+	\item \textbf{Robustez:} raíz del sistema en solo lectura para soportar apagones sin corromper la microSD.
 \end{itemize}
 
 \subsection{Desviaciones del plan y su causa}
@@ -19,10 +24,41 @@
 		\hline
 		\textbf{Planeado} & \textbf{Construido y causa} \\
 		\hline
-		\pend{} & \pend{(ver la sección 8 de la guía)} \\
+		SPI para leer el 74HC165 & PIO + DMA: el SPI no genera el pulso de carga paralela que necesita el registro. \\
+		\hline
+		Interrupción de temporizador cada 5 ms & La PIO y el DMA leen solos, sin CPU. El periodo quedó en 3.42 ms por el divisor actual (ver Pruebas de integración). \\
+		\hline
+		Mutex sobre el reporte HID & Sin candado: el DMA escribe campos de 16 bits en una sola transferencia y un mutex no puede proteger contra el DMA. \\
+		\hline
+		RetroArch expone un socket UNIX & RetroArch expone comandos por UDP 55355; el socket UNIX quedó entre telemetría y puente. \\
+		\hline
+		Triple buffer con semáforos POSIX & Lo resuelve RetroArch con DRM (\texttt{ra\_gl.cfg}, línea 3261); no es código del equipo. \\
+		\hline
+		Órdenes a la Pico por serial CDC (primera versión del Avance 3) & Reporte de salida HID de 8 bytes, para respetar el diagrama con un solo enlace USB HID. \\
+		\hline
+		Antirrebote con red RC & $\tau = 330\,\Omega \times 100\text{ nF} = 33\,\mu\text{s}$, mucho menor que el rebote de un botón (1 a 10 ms); no sirve como antirrebote. \\
+		\hline
+		Pong y Pac-Man & Solo Pac-Man (NES, core Nestopia), el único core instalado; Pong pasa al Avance 4. \\
+		\hline
+		Audio del juego & Desactivado (\texttt{audio\_driver = "null"}): el prototipo no tiene bocina. \\
+		\hline
+		Netplay en el Avance 3 & Pasa al Avance 4 por tiempo. \\
 		\hline
 	\end{tabular}
 \end{table}
 
 \section{Declaración de uso de IA}
-\pend{qué herramientas se usaron, para qué, y qué se verificó a mano}.
+El equipo usó asistentes de IA generativa como apoyo durante este avance:
+\begin{itemize}
+	\item \textbf{Claude (Anthropic):} planeación y reparto de tareas, estructura del reporte en LaTeX,
+	borradores de \texttt{telemetria.py}, \texttt{puente\_hid.py}, los servicios de \texttt{systemd},
+	\texttt{instalar.sh}, el \texttt{README}, \texttt{actuadores.c} y el reporte de salida HID; revisión y
+	compilación del firmware.
+	\item \pend{Gemini (Google): ejemplo del formato del reporte de salida HID. Confirmar herramienta y uso.}
+\end{itemize}
+Todo el código generado se revisó y se probó en el hardware del equipo: RetroArch y la pantalla TFT,
+la lectura de la RAM del juego (dirección \texttt{0x067}), el arranque automático con \texttt{systemd},
+las prioridades (\texttt{Nice}) y la recuperación ante la falla F1 (3.4 s). El firmware compila sin
+errores ni advertencias con el Pico SDK 2.1.1. Las decisiones de diseño, las mediciones y las respuestas
+de la bitácora son responsabilidad de cada integrante.
+\pend{Revisar que la lista refleje lo que realmente usó cada integrante.}
