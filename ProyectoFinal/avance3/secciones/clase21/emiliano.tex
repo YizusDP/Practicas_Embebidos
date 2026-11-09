@@ -1,0 +1,19 @@
+% Clase 21 — García Olvera Emiliano (actuadores)
+\paragraph{Actuadores}
+\textbf{Autor:} García Olvera Emiliano
+
+\textbf{En la Pico} (\texttt{actuadores.c}): el motor (GP15) y el buzzer (GP12) usan \texttt{hardware/pwm}, en
+\textit{slices} distintos para que el buzzer pueda cambiar de frecuencia sin afectar al motor; los LEDs (GP10 y GP11)
+usan \texttt{hardware/gpio}; el apagado lo hace una alarma de \texttt{pico/time} (\texttt{actuadores.c}, líneas 61 y 72),
+así ninguna orden bloquea el lazo principal. Son bibliotecas del Pico SDK sobre los registros; no hace falta un driver propio.
+
+\textbf{En la Pi:} las órdenes no usan un dispositivo nuevo, sino el mismo control HID. El puente escribe el reporte de
+salida en \texttt{/dev/hidraw}\pend{N} (driver genérico \texttt{hidraw}), y el kernel lo entrega a la Pico como
+\texttt{SET\_REPORT} por el \textit{endpoint} de control. En la Pico lo recibe \texttt{tud\_hid\_set\_report\_cb()}
+(\texttt{usb\_data\_tx.c}, línea 194).
+
+\textbf{Evidencia:}
+\begin{lstlisting}
+ls -l /dev/hidraw* /dev/arcade_hid
+\end{lstlisting}
+\pend{pegar aquí la salida}

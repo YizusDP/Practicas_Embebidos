@@ -6,6 +6,8 @@
 \usepackage[T1]{fontenc}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
+% Busca imágenes desde avance3/ y desde ProyectoFinal/ (algunas secciones usan avance3/img/...)
+\graphicspath{{./}{../}}
 \usepackage{xcolor}
 \usepackage{float}
 \usepackage{array}
@@ -108,21 +110,21 @@ presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó c
 		\hline
 		\textbf{Bloque} & \textbf{Implementación} & \textbf{Archivo} & \textbf{Estado} \\
 		\hline
-		Botones y 74HC165 $\times 2$ & 10 botones en cascada, lectura por PIO + DMA cada 5 ms & \texttt{firmware/botones.c}, \texttt{read\_74hc165.pio} & \pend{ok?} \\
+		Botones y 74HC165 $\times 2$ & 10 botones en cascada; la PIO arma tramas de 10 bits con \textit{autopush} y 2 canales DMA encadenados las copian a SRAM sin usar la CPU & \texttt{firmware/read\_74hc165.c}, \texttt{read\_74hc165.pio} & Listo \\
 		\hline
-		Potenciómetro & ADC de 12 bits, cada 10 ms & \texttt{firmware/adc\_pot.c} & \pend{ok?} \\
+		Potenciómetro & ADC de 12 bits en \textit{round-robin} (X, Y, Z) a 4 kHz por canal; DMA en anillo de 8 bytes & \texttt{firmware/read\_adc.c} & Listo \\
 		\hline
-		Enlace USB & Dispositivo compuesto: HID gamepad + CDC serial (TinyUSB) & \texttt{firmware/main.c}, \texttt{usb\_descriptors.c} & \pend{ok?} \\
+		Enlace USB & Un solo enlace HID (TinyUSB): reporte de entrada de 10 bytes cada 1 ms (3 ejes + 10 botones) y reporte de salida de 8 bytes con las órdenes de actuadores & \texttt{firmware/usb\_data\_tx.c}, \texttt{main.c} & \pend{probar en la Pi} \\
 		\hline
-		Actuadores & Motor y buzzer por PWM, LEDs por GPIO; órdenes \texttt{VIB}, \texttt{BUZ}, \texttt{LED} & \texttt{firmware/actuadores.c} & \pend{ok?} \\
+		Actuadores & Motor (PWM a 20 kHz) y buzzer por PWM, 2 LEDs por GPIO; se apagan con alarmas, sin bloquear & \texttt{firmware/actuadores.c} & \pend{probar} \\
 		\hline
-		Consola (Linux) & Raspberry Pi OS Lite, kernel 6.18, arranque con \texttt{systemd} & \texttt{pi/systemd/*.service} & \pend{ok?} \\
+		Consola (Linux) & Raspberry Pi OS Lite, kernel 6.18, arranque con \texttt{systemd} & \texttt{pi/systemd/*.service} & Listo \\
 		\hline
-		Emulación & RetroArch con driver \texttt{gl} sobre DRM & \texttt{pantalla/ra\_gl.cfg} & \pend{ok?} \\
+		Emulación & RetroArch con driver \texttt{gl} sobre DRM & \texttt{pantalla/ra\_gl.cfg} & Listo \\
 		\hline
 		Pantalla TFT 3.5'' & ST7796S por SPI a 50 MHz, driver \texttt{panel-mipi-dbi}, 480$\times$320 & \texttt{pantalla/config\_txt\_pantalla.txt} & Lista \\
 		\hline
-		Telemetría e IPC & Lectura de RAM por UDP 55355; socket \texttt{AF\_UNIX} hacia el puente serial & \texttt{pi/telemetria.py}, \texttt{pi/puente\_serial.py} & Lista \\
+		Telemetría e IPC & Lectura de RAM por UDP 55355; socket \texttt{AF\_UNIX} hacia el puente HID & \texttt{pi/telemetria.py}, \texttt{pi/puente\_hid.py} & Listo \\
 		\hline
 		Red LAN & Ethernet de la Pi 4; netplay en el Avance 4 & --- & Parcial \\
 		\hline
@@ -131,20 +133,24 @@ presentes y conectados; la Tabla~\ref{tab:bloques} indica cómo se implementó c
 
 \subsection{Flujo de datos de extremo a extremo}
 \begin{enumerate}
-	\item \textbf{Entrada:} un botón cambia de nivel; la alarma de 5 ms dispara la PIO, que serializa los 16 bits
-	de los 74HC165; el DMA los copia a SRAM y la estructura \texttt{estado} se actualiza bajo un spin lock.
-	\item \textbf{Hacia la consola:} Core 0 arma el reporte HID y lo envía por USB; en Linux, el driver
+	\item \textbf{Entrada:} la PIO lee continuamente los dos 74HC165 en tramas de 10 bits; al completar cada trama
+	el \textit{autopush} la deja en la FIFO y dos canales DMA encadenados la copian a \texttt{g\_controls.buttons}.
+	En paralelo, el ADC en \textit{round-robin} y otro par de canales DMA actualizan \texttt{g\_controls.axis}. La CPU no interviene.
+	\item \textbf{Hacia la consola:} el lazo de Core 0, despertado cada 1 ms, envía \texttt{g\_controls} como reporte HID
+	de 10 bytes y alimenta el \textit{watchdog} solo si los DMA siguen avanzando; en Linux, el driver
 	\texttt{usbhid} lo publica en \texttt{/dev/input/event}\pend{N}, de donde lo lee RetroArch.
 	\item \textbf{Salida de video:} RetroArch dibuja el cuadro y el driver \texttt{panel-mipi-dbi} lo envía por SPI a la pantalla.
 	\item \textbf{Retroalimentación:} \texttt{telemetria.py} lee las vidas y el puntaje; al detectar un cambio manda una
-	orden por el socket UNIX a \texttt{puente\_serial.py}, que la escribe en \texttt{/dev/ttyACM0}; la Pico activa el actuador.
+	orden por el socket UNIX a \texttt{puente\_hid.py}, que la traduce a un reporte de salida HID de 8 bytes y la escribe en
+	\texttt{/dev/arcade\_hid}; en la Pico, \texttt{tud\_hid\_set\_report\_cb()} la recibe y activa el actuador.
 \end{enumerate}
 
 \subsection{Demostración}
 \begin{figure}[H]
 	\centering
-	\imgph{foto del sistema completo: control, Pi 4 y pantalla con el juego}{4.5cm}
-	\caption{Sistema integrado durante la demostración.}
+	\includegraphics[width=0.9\columnwidth]{img/demo_pacman.jpg}
+	% Cuando esté el control: cambiar por una foto del sistema completo (control + Pi 4 + pantalla)
+	\caption{Pac-Man corriendo en la pantalla TFT de 3.5'' con RetroArch.}
 	\label{fig:demo}
 \end{figure}
 
@@ -163,10 +169,11 @@ cd Practicas_Embebidos/ProyectoFinal
 sudo ./pi/instalar.sh
 sudo reboot
 \end{lstlisting}
-Tras el reinicio, \texttt{systemctl status arcade.target} muestra los tres servicios activos (Fig.~\ref{fig:arranque}).
+Tras el reinicio, \texttt{systemctl status arcade.target} muestra el grupo activo sin intervención; los servicios
+arrancan en orden (puente, RetroArch y telemetría) y \texttt{ps} muestra las prioridades $-5$ y $10$ (Fig.~\ref{fig:arranque}).
 \begin{figure}[H]
 	\centering
-	\imgph{captura de \texttt{systemctl status arcade.target} justo después de encender}{3.5cm}
+	\includegraphics[width=0.95\columnwidth]{img/arranque_automatico.png}
 	\caption{Arranque automático del sistema.}
 	\label{fig:arranque}
 \end{figure}
@@ -184,28 +191,78 @@ La Tabla~\ref{tab:bitacora} resume dónde quedó cada decisión. Las entradas fi
 	\centering
 	\caption{Decisiones de las clases 8, 9 y 11: planeado frente a construido}
 	\label{tab:bitacora}
-	\small
+	\footnotesize
 	\begin{tabular}{|p{1.2cm}|p{3.6cm}|p{3.8cm}|p{3.2cm}|p{3.8cm}|}
 		\hline
 		\textbf{Clase} & \textbf{Planeado (Avance 1)} & \textbf{Construido} & \textbf{Archivo:línea} & \textbf{Diferencia y causa} \\
 		\hline
-		8 Pico & Lectura de botones por interrupción de temporizador cada 5 ms, prioridad alta & \pend{Samuel} & \pend{botones.c:N} & \pend{} \\
+		8 Pico & Lectura de botones por interrupción de temporizador cada 5 ms, prioridad alta & La lectura no usa CPU: PIO + DMA encadenado trabajan solos; la CPU solo atiende USB y \textit{watchdog}, despertada cada 1 ms & \texttt{read\_74hc165.c:60},\newline\texttt{main.c:46} & No hay tarea periódica: el hardware reemplaza a la interrupción. El periodo lo fija el divisor de la PIO (3.42 ms con el divisor actual) \\
 		\hline
-		8 Pi 4 & RetroArch con \textit{nice} menor que la telemetría & \texttt{Nice=-5} en RetroArch, \texttt{Nice=10} en telemetría & \pend{arcade-retroarch.service:N} & Ninguna \\
+		8 Pi 4 & RetroArch con \textit{nice} menor que la telemetría & \texttt{Nice=-5} en RetroArch, \texttt{Nice=10} en telemetría & \texttt{arcade-retroarch.service:18},\newline\texttt{arcade-telemetria.service:11} & Ninguna \\
 		\hline
-		9 Pico & Mutex de hardware sobre el reporte HID & Spin lock sobre \texttt{estado} & \pend{estado.h:N, botones.c:N} & No se puede dormir esperando un mutex dentro de una interrupción \\
+		9 Pico & Mutex de hardware sobre el reporte HID & Sin candado: el DMA escribe cada campo de 16 bits en una sola transferencia y el USB copia campo por campo con lecturas de 16 bits & \texttt{main.c:19},\newline\texttt{usb\_data\_tx.c:28} & Un mutex no protege contra el DMA, que no toma candados; la escritura atómica de 16 bits evita valores partidos \\
 		\hline
-		9 Pi 4 & Triple buffer con semáforos POSIX & Lo resuelve RetroArch con DRM & \texttt{ra\_gl.cfg:3261} & No es código nuestro; se configura con \texttt{video\_max\_swapchain\_images = "3"} \\
+		9 Pi 4 & Triple buffer con semáforos POSIX & Lo resuelve RetroArch con DRM; además, el puente es el único proceso que escribe en el control & \texttt{ra\_gl.cfg:3261},\newline\texttt{puente\_hid.py:105} & No es código nuestro; se configura con \texttt{video\_max\_swapchain\_images = "3"} \\
 		\hline
-		11 & Socket \texttt{AF\_UNIX DGRAM} expuesto por RetroArch & RetroArch expone UDP 55355; el socket UNIX une telemetría y puente & telemetria.py:39, puente\_hid.py:73 & RetroArch no ofrece socket UNIX \\
+		11 & Socket \texttt{AF\_UNIX DGRAM} expuesto por RetroArch & RetroArch expone UDP 55355; el socket UNIX une telemetría y puente & \texttt{telemetria.py:44},\newline\texttt{puente\_hid.py:73},\newline\texttt{usb\_data\_tx.c:194} & RetroArch no ofrece socket UNIX. Las órdenes llegan a la Pico como reporte de salida HID (se descartó un serial CDC para respetar el diagrama) \\
 		\hline
 	\end{tabular}
 \end{table*}
 
 \input{secciones/adonahi}   % Clases 8 y 9
 \input{secciones/alan}      % Clase 11
-\input{secciones/emiliano}  % Clase 20: tipos y volatile
-\input{secciones/emmanuel}  % Clase 21: drivers
+% ---------------------------------------------------------------------
+% Clase 20: cada integrante responde sobre SU parte del sistema
+% ---------------------------------------------------------------------
+\subsection{Clase 20: Tipos y \texttt{volatile}}
+\textbf{Pregunta:} ¿qué tipos de datos usa el código del proyecto, por qué esos tamaños y dónde se usa
+\texttt{volatile}? Respondida con cifras y evidencia de la terminal. Cada integrante responde por la parte que le tocó.
+
+\input{secciones/clase20/samuel}    % botones y enlace USB HID
+\input{secciones/clase20/emmanuel}  % potenciómetro (ADC)
+\input{secciones/clase20/emiliano}  % actuadores
+\input{secciones/clase20/jesus}     % pantalla
+\input{secciones/clase20/alan}      % telemetría e IPC
+
+% ---------------------------------------------------------------------
+% Clase 21: cada integrante responde sobre SU parte del sistema
+% ---------------------------------------------------------------------
+\subsection{Clase 21: Driver de cada sensor y actuador}
+\textbf{Pregunta:} para cada sensor o actuador de su proyecto, indiquen qué archivo de dispositivo o biblioteca
+usa y qué driver del kernel hay detrás (con \texttt{ls -l /dev}, \texttt{lsmod} o \texttt{dmesg} como evidencia).
+Si alguna parte necesitara un driver propio, expliquen por qué no alcanza el genérico.
+
+\begin{table}[H]
+	\centering
+	\caption{Driver de cada sensor y actuador}
+	\label{tab:drivers}
+	\footnotesize
+	\begin{tabular}{|p{1.7cm}|p{2.9cm}|p{2.3cm}|}
+		\hline
+		\textbf{Elemento} & \textbf{Driver o biblioteca} & \textbf{Responsable} \\
+		\hline
+		Botones & PIO + DMA (propio) & Samuel \\
+		\hline
+		Enlace USB & TinyUSB (Pico); \texttt{usbhid}, \texttt{hid-generic} (Pi) & Samuel \\
+		\hline
+		Potenciómetro & \texttt{hardware/adc} + \texttt{hardware/dma} & Emmanuel \\
+		\hline
+		Motor, buzzer & \texttt{hardware/pwm} & Emiliano \\
+		\hline
+		LEDs & \texttt{hardware/gpio} & Emiliano \\
+		\hline
+		Órdenes (Pi) & \texttt{hidraw} y regla de \texttt{udev} & Emiliano, Adonahí \\
+		\hline
+		Pantalla & \texttt{panel-mipi-dbi} sobre \texttt{spi-bcm2835} (DRM) & Jesús \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\input{secciones/clase21/samuel}    % botones y enlace USB HID
+\input{secciones/clase21/emmanuel}  % potenciómetro (ADC)
+\input{secciones/clase21/emiliano}  % actuadores
+\input{secciones/clase21/jesus}     % pantalla
+\input{secciones/clase21/adonahi}   % permisos de dispositivos (udev)
 \input{secciones/alan_plan} % Pendientes del Avance 4 y declaración de IA
 
 \vspace{0.2cm}

@@ -1,40 +1,52 @@
 %=====================================================================
 % Sección de Belmont Muñoz Samuel: pruebas de integración
-% Solo Samuel edita este archivo. Quitar todos los \pend{} antes de entregar.
+% Los valores MEDIDOS (en rojo) los llena Samuel con el osciloscopio o el
+% analizador lógico. No inventar datos.
 %=====================================================================
 \section{Pruebas de integración}
 \textbf{Autor:} Belmont Muñoz Samuel
 
 \textbf{Requisito medido:} RF1 del Avance 1, lectura de botones con periodo de $5\text{ ms} \pm 0.5\text{ ms}$ ($200\text{ Hz}$).
 
-\textbf{Método:} en cada disparo de la alarma se guarda \texttt{time\_us\_64()} y se calcula la diferencia con el anterior.
-Tras \pend{10,000} muestras la Pico imprime por el serial el mínimo, el máximo y el promedio (\texttt{firmware/botones.c}, línea \pend{N}).
+\textbf{Cálculo teórico.} La lectura la hace la PIO sin intervención de la CPU, así que el periodo lo fija
+el número de ciclos del programa \texttt{read\_74hc165.pio} y el divisor de reloj
+(\texttt{BTN\_SM\_CLKDIV = 125}, o sea $125\text{ MHz}/125 = 1\text{ MHz}$, $1\,\mu\text{s}$ por ciclo):
+\begin{align*}
+	\text{carga y liberación} &= 4 \times 32 = 128 \\
+	\text{primer bit} + \texttt{set x} &= 1 + 1 = 2 \\
+	\text{9 bits restantes} &= 9 \times (4 \times 32 + 1 + 1) = 1170 \\
+	\text{pausa} &= 1 + 2 \times (1 + 32 \times 33 + 1) = 2117 \\
+	\text{total} &= 3417 \text{ ciclos} = 3.417\text{ ms}\ (292.7\text{ Hz})
+\end{align*}
+
+\textbf{Método de medición:} se conecta el osciloscopio o analizador lógico a GPIO17 (señal LD del 74HC165)
+y se mide el tiempo entre dos pulsos de carga consecutivos, que es el periodo de una trama completa.
+\pend{Indicar el instrumento usado y cuántas tramas se promediaron.}
 
 \begin{table}[H]
 	\centering
-	\caption{Periodo de muestreo medido contra el Avance 1}
+	\caption{Periodo de lectura de botones contra el Avance 1}
 	\label{tab:medicion}
 	\small
-	\begin{tabular}{|l|c|c|}
+	\begin{tabular}{|l|c|c|c|}
 		\hline
-		\textbf{Dato} & \textbf{Comprometido} & \textbf{Medido} \\
+		\textbf{Dato} & \textbf{Avance 1} & \textbf{Teórico} & \textbf{Medido} \\
 		\hline
-		Periodo mínimo & $\geq 4{,}500\text{ }\mu\text{s}$ & \pend{} \\
+		Periodo & $5.0 \pm 0.5\text{ ms}$ & $3.417\text{ ms}$ & \pend{} \\
 		\hline
-		Periodo máximo & $\leq 5{,}500\text{ }\mu\text{s}$ & \pend{} \\
-		\hline
-		Periodo promedio & $5{,}000\text{ }\mu\text{s}$ & \pend{} \\
-		\hline
-		Muestras & --- & \pend{} \\
+		Frecuencia & $200\text{ Hz}$ & $292.7\text{ Hz}$ & \pend{} \\
 		\hline
 	\end{tabular}
 \end{table}
 
 \begin{figure}[H]
 	\centering
-	\imgph{captura de la terminal con la medición del periodo}{4cm}
-	\caption{Salida de la medición en la terminal.}
+	\imgph{captura del osciloscopio o analizador lógico en GPIO17 (LD)}{4cm}
+	\caption{Periodo de la trama de lectura medido en la señal LD.}
 	\label{fig:medicion}
 \end{figure}
 
-\textbf{Resultado:} \pend{cumple / no cumple, y con qué margen}.
+\textbf{Resultado:} \pend{Con el divisor actual el periodo teórico (3.417 ms) queda fuera de $5 \pm 0.5$ ms:
+la lectura es 1.58 ms más rápida que lo comprometido. Confirmar con la medición y elegir: (a) reportar que no
+cumple por ser más rápida, lo que no afecta la latencia, o (b) cambiar \texttt{BTN\_SM\_CLKDIV} a 182.91, que da
+$3417 \times 182.91 / 125 = 5000\,\mu\text{s}$, y volver a medir.}
