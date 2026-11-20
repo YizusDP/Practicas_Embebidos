@@ -1,0 +1,40 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Conclusión Individual: Proyecto Final \\
+\large Terminal de Juegos Retro Distribuida con Mando Embebido}
+
+\author{
+\IEEEauthorblockN{Belmont Muñoz Samuel}
+\IEEEauthorblockA{\textit{Ingeniería en Computación — Facultad de Ingeniería, UNAM} \\
+No. Cuenta: 317318289 \quad | \quad Grupo 6, Equipo 2}
+}
+
+\maketitle
+
+\section*{Aportación Técnica al Sistema}
+
+Durante el desarrollo del proyecto integrador, mi participación principal se enfocó en el diseño del módulo de adquisición digital del mando embebido y en la implementación de la interfaz de comunicación USB HID sobre la Raspberry Pi Pico (RP2040).
+
+En el subsistema de entrada digital, diseñé el programa de máquina de estados PIO (\texttt{read\_74hc165.pio}) y su controlador en C (\texttt{read\_74hc165.c}) para leer en cascada dos registros de desplazamiento 74HC165 correspondientes a los 10 botones físicos del tablero arcade. Dado que el periférico SPI convencional no genera de forma nativa el pulso de carga paralela (\texttt{LD}) requerido por estos registros, la máquina PIO controla directamente las líneas de reloj, carga y datos serie, armando tramas de 10 bits mediante \textit{autopush} y transfiriéndolas hacia la estructura \texttt{g\_controls.buttons} en SRAM a través de dos canales DMA encadenados sin intervención de la CPU. Asimismo, analicé los ciclos de reloj de la PIO para ajustar el divisor fraccionario del reloj y garantizar el periodo de muestreo de $5.0 \pm 0.5\text{ ms}$ ($200\text{ Hz}$) establecido en los requisitos.
+
+Adicionalmente, implementé el enlace USB HID mediante la pila TinyUSB (\texttt{usb\_data\_tx.c} y \texttt{controls\_report.h}), definiendo una estructura empaquetada de 10 bytes con verificación estática de tamaño (\texttt{\_Static\_assert}) y lecturas atómicas de 16 bits sobre memoria \texttt{volatile} para evitar condiciones de carrera con el DMA. También colaboré en la redacción de la bitácora de diseño (Clases 7, 12, 15, 17, 20 y 21) y en la ejecución de las pruebas de integración del sistema.
+
+\section*{Aprendizajes Obtenidos}
+
+La implementación de este sistema me permitió comprender las ventajas reales de descargar tareas críticas de tiempo real en periféricos autónomos de hardware como PIO y DMA dentro de una arquitectura \textit{bare-metal}. Al delegar la serialización y el movimiento de datos fuera del procesador principal, el núcleo ARM Cortex-M0+ quedó completamente disponible para atender el protocolo USB HID y supervisar el \textit{watchdog} con un consumo mínimo de memoria Flash y SRAM.
+
+Por otro lado, verificar la temporización del código mediante el conteo exacto de ciclos de instrucción y contrastar los tipos de datos a nivel de bytes entre el microcontrolador y el kernel de Linux (\texttt{usbhid}) reforzó la importancia del determinismo, la alineación de memoria y el uso riguroso del calificador \texttt{volatile} en sistemas embebidos de producción.
+
+\vspace{0.3cm}
+\noindent\textbf{Repositorio del proyecto:} \\
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
+
+\end{document}

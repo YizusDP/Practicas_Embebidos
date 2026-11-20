@@ -1,0 +1,281 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% Configuración para español
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% Paquetes estándar IEEE
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\graphicspath{{./}{img/}{../avance3/img/}}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage[hidelinks]{hyperref}
+
+% Colores y macros de apoyo
+\definecolor{codegray}{rgb}{0.45,0.45,0.45}
+\definecolor{codeblue}{rgb}{0.10,0.10,0.60}
+\definecolor{pend}{rgb}{0.75,0.10,0.10}
+
+\lstset{
+	basicstyle=\ttfamily\scriptsize,
+	keywordstyle=\color{codeblue}\bfseries,
+	commentstyle=\color{codegray}\itshape,
+	stringstyle=\color{codegray},
+	frame=single,
+	breaklines=true,
+	breakatwhitespace=true,
+	showstringspaces=false,
+	columns=fullflexible,
+	tabsize=2,
+	literate=%
+	{á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+	{Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+	{ñ}{{\~n}}1 {Ñ}{{\~N}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+
+\newcommand{\imgph}[2]{%
+	\fbox{\begin{minipage}[c][#2][c]{0.92\columnwidth}
+			\centering\textcolor{codegray}{\footnotesize [Espacio para imagen: #1]}
+	\end{minipage}}%
+}
+% Marca en rojo los valores medidos pendientes; eliminar antes de la entrega final
+\newcommand{\pend}[1]{\textcolor{pend}{[#1]}}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+	T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Reporte Final de Proyecto: \\
+	\large Terminal de Juegos Retro Distribuida con Mando Embebido}
+
+\author{
+	\IEEEauthorblockN{Belmont Muñoz Samuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería, UNAM}\\
+		No. Cuenta: 317318289}
+	\and
+	\IEEEauthorblockN{Domínguez Palacios Jesús Alejandro}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería, UNAM}\\
+		No. Cuenta: 421066205}
+	\and
+	\IEEEauthorblockN{Dorantes Mejía Emmanuel}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería, UNAM}\\
+		No. Cuenta: 313004766}
+	\and
+	\IEEEauthorblockN{García Olvera Emiliano}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería, UNAM}\\
+		No. Cuenta: 314256009}
+	\and
+	\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería, UNAM}\\
+		No. Cuenta: 320257780}
+	\and
+	\IEEEauthorblockN{Jiménez Reyes Alan Yael}
+	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
+		\textit{Facultad de Ingeniería, UNAM}\\
+		No. Cuenta: 320026726}
+}
+
+\maketitle
+
+\begin{center}
+	\vspace{-0.3cm}
+	{\small
+		\textbf{Fundamentos de Sistemas Embebidos — Grupo 6, Equipo 2} \quad | \quad
+		\textbf{Entrega Final:} Noviembre 2026
+	}
+	\vspace{0.2cm}
+\end{center}
+
+\begin{abstract}
+Este documento presenta el diseño, implementación y validación experimental de una terminal de juegos retro distribuida basada en hardware embebido. La arquitectura divide responsabilidades entre un nodo esclavo determinista (Raspberry Pi Pico, RP2040) ejecutando firmware \textit{bare-metal} y un nodo maestro (Raspberry Pi 4 Model B) corriendo RetroArch sobre Raspberry Pi OS Lite. El mando embebido adquiere 10 botones digitales mediante dos registros de desplazamiento 74HC165 en cascada con filtrado RC por hardware, gestionados por una máquina de estados PIO y canales DMA encadenados a $200\text{ Hz}$ ($5.0\text{ ms}$), junto con ejes analógicos mediante ADC a $4\text{ kHz}$ por canal. La comunicación con la consola opera mediante un enlace único USB HID bidireccional: reportes de entrada de 10 bytes cada $1\text{ ms}$ y reportes de salida de 8 bytes para gobernar actuadores hápticos, sonoros y visuales sin bloquear el lazo principal. En la consola, el despliegue gráfico se realiza por SPI a $50\text{ MHz}$ sobre una pantalla TFT de 3.5 pulgadas mediante DRM/KMS, mientras que un esquema de comunicación entre procesos (UDP local y socket \texttt{AF\_UNIX}) extrae telemetría de memoria en tiempo real y controla los actuadores bajo orquestación autónoma con \texttt{systemd}. Se reportan las métricas experimentales de latencia, uso de CPU, huella de memoria, consumo energético y tolerancia a fallas.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Sistemas embebidos, Raspberry Pi Pico, Raspberry Pi 4, PIO, DMA, USB HID, RetroArch, systemd, IPC.
+\end{IEEEkeywords}
+
+% =====================================================================
+% I. INTRODUCCIÓN, PROBLEMA Y ALCANCE
+% =====================================================================
+\section{Introducción, Problema y Alcance}
+
+\subsection{Descripción del Problema y Usuario Objetivo}
+Los sistemas de emulación arcade de bajo costo suelen depender de periféricos genéricos con tiempos de respuesta no deterministas y carecen de retroalimentación física vinculada al estado interno del videojuego. El objetivo de este proyecto es construir una terminal arcade autónoma dirigida a estudiantes y entusiastas de los sistemas embebidos, separando la adquisición determinista de controles físicos de bajo nivel del procesamiento multimedia y de emulación en un sistema operativo embebido.
+
+\subsection{Alcance Implementado y Delimitación}
+\begin{itemize}
+	\item \textbf{Implementado:} Control físico basado en RP2040 con 10 botones digitales (74HC165 $\times 2$ con antirrebote RC), entrada analógica ADC, actuadores (motor de vibración, buzzer pasivo y LEDs), comunicación bidireccional USB HID, emulación en Raspberry Pi 4 sobre pantalla TFT SPI de 3.5 pulgadas, telemetría de memoria en tiempo real con IPC por socket UNIX y arranque autónomo tolerante a fallas mediante \texttt{systemd}.
+	\item \textbf{Fuera de alcance final:} Desarrollo de motores de juego o ROMs propias, multijugador remoto WAN por VPN (WireGuard) y multijugador local en red LAN (declarado explícitamente en la Sección~\ref{sec:requisitos} al priorizar la integración física del gabinete y la telemetría háptica).
+\end{itemize}
+
+% =====================================================================
+% II. REQUISITOS Y CUMPLIMIENTO
+% =====================================================================
+\section{Requisitos y Matriz de Cumplimiento}
+\label{sec:requisitos}
+
+La Tabla~\ref{tab:requisitos} contrasta los requisitos funcionales (RF) y no funcionales (RNF) definidos al inicio del proyecto frente a los valores medidos en el prototipo final.
+
+\begin{table*}[!t]
+	\centering
+	\caption{Matriz de cumplimiento de requisitos funcionales y no funcionales}
+	\label{tab:requisitos}
+	\footnotesize
+	\begin{tabular}{|p{1.0cm}|p{3.4cm}|p{3.3cm}|p{3.8cm}|p{2.2cm}|}
+		\hline
+		\textbf{ID} & \textbf{Requisito} & \textbf{Criterio Planeado} & \textbf{Resultado Medido / Construido} & \textbf{Estado} \\
+		\hline
+		RF1 & Adquisición de entradas digitales (74HC165 $\times 2$) & Periodo de $5.0 \pm 0.5\text{ ms}$ ($200\text{ Hz}$) & Periodo de \pend{5.00 ms} ($200\text{ Hz}$) con PIO + DMA (divisor \texttt{182.91}), $0$ tramas perdidas & \textbf{Cumplido} \\
+		\hline
+		RF2 & Lectura analógica de eje (ADC) & Resolución $\ge 10\text{ bits}$, periodo $\le 10\text{ ms}$ & Resolución de $12\text{ bits}$ en \textit{round-robin} a $4\text{ kHz}$/canal ($0.25\text{ ms}$ por muestra) con DMA circular & \textbf{Cumplido} \\
+		\hline
+		RF3 & Telemetría y retroalimentación bidireccional & Recepción de comando en esclavo $< 20\text{ ms}$ tras evento & Lectura UDP en \texttt{127.0.0.1:55355} + socket UNIX + HID OUT de 8 bytes en \pend{X.X ms} & \textbf{Cumplido} \\
+		\hline
+		RNF1 & Latencia de control (\textit{Input Lag}) & Extremo a extremo $\le 15\text{ ms}$ & Latencia física medida botón $\rightarrow$ reporte HID / respuesta: \pend{XX.X ms} & \pend{Cumplido} \\
+		\hline
+		RNF2 & Respuesta háptica & Activación del motor $\le 50\text{ ms}$ tras señal & Activación PWM a $20\text{ kHz}$ mediante alarma no bloqueante en \pend{XX.X ms} & \pend{Cumplido} \\
+		\hline
+		RNF3 & Conectividad multijugador en red local (LAN) & Pérdida $0\%$, \textit{ping} $< 5\text{ ms}$ entre dos nodos & No implementado en el prototipo final por disponibilidad de una sola unidad física armada & \textbf{No cumplido (declarado)} \\
+		\hline
+	\end{tabular}
+\end{table*}
+
+% =====================================================================
+% III. ARQUITECTURA DEL SISTEMA Y HARDWARE
+% =====================================================================
+\section{Arquitectura del Sistema y Plataforma}
+
+% Sección escrita por Jesús (diagrama de bloques final, descripción de bloques y pantalla TFT)
+\input{secciones/jesus}
+
+\subsection{Justificación de Plataforma Heterogénea y Materiales}
+El sistema combina dos paradigmas complementarios:
+\begin{enumerate}
+	\item \textbf{Nodo Esclavo (Raspberry Pi Pico — RP2040, \textit{Bare-Metal}):} Procesador dual-core ARM Cortex-M0+ a $133\text{ MHz}$ con $264\text{ KB}$ de SRAM y $2\text{ MB}$ de Flash. Sin sistema operativo ni cambios de contexto, las máquinas de estados PIO y los canales DMA ejecutan la adquisición de sensores de forma autónoma, permitiendo que Core 0 gestione el enlace USB HID cada $1\text{ ms}$ y supervise el \textit{watchdog} de hardware ($250\text{ ms}$).
+	\item \textbf{Nodo Maestro (Raspberry Pi 4 Model B Rev 1.5, Linux Embebido):} Quad-core ARM Cortex-A72 (hasta $1.8\text{ GHz}$) con $1\text{ GB}$ de RAM LPDDR4 ejecutando Raspberry Pi OS Lite de 64 bits (kernel 6.18) en modo consola sin servidor gráfico, utilizando DRM/KMS para video y \texttt{systemd} para la orquestación de procesos.
+\end{enumerate}
+
+El costo total de materiales del prototipo armado asciende a \textbf{\$1,620 MXN} (Raspberry Pi 4 B, Raspberry Pi Pico, dos registros 74HC165, 10 botones arcade con red antirrebote RC de $330\,\Omega$ y $100\text{ nF}$, potenciómetro de $10\text{ k}\Omega$, motor de vibración, buzzer pasivo, LEDs y pantalla TFT SPI de 3.5'').
+
+% =====================================================================
+% IV. IMPLEMENTACIÓN, MÉTRICAS Y ROBUSTEZ
+% =====================================================================
+\section{Implementación, Métricas y Pruebas}
+
+\subsection{Resumen de Métricas Experimentales del Sistema}
+La Tabla~\ref{tab:metricas_finales} consolida las cuatro métricas de desempeño medidas directamente sobre el sistema físico operando en condiciones normales de juego (emulación de Pac-Man con telemetría activa).
+
+\begin{table}[H]
+	\centering
+	\caption{Métricas experimentales medidas en el sistema final}
+	\label{tab:metricas_finales}
+	\footnotesize
+	\begin{tabular}{|p{2.3cm}|p{2.5cm}|p{2.6cm}|}
+		\hline
+		\textbf{Métrica} & \textbf{Nodo Esclavo (Pico)} & \textbf{Nodo Maestro (Pi 4)} \\
+		\hline
+		Latencia / Periodo & Muestreo botones: \pend{5.00 ms}; reporte USB HID: $1.00\text{ ms}$ & Cuadro SPI TFT: $49.15\text{ ms}$ ($20.35\text{ FPS}$); entrada total: \pend{XX.X ms} \\
+		\hline
+		Uso de CPU & $< 2\%$ en Core 0 (PIO + DMA autónomos; \texttt{\_\_wfi()}) & RetroArch: \pend{XX\%}; Python IPC: \pend{X.X\%} (idle: \pend{XX\%}) \\
+		\hline
+		Uso de Memoria & Flash: $23{,}476\text{ B}$ ($1.1\%$); SRAM: $3{,}520\text{ B}$ ($1.3\%$) & Reposo: $135\text{ MB}$ / $1\text{ GB}$; en juego: \pend{XXX MB} (\texttt{free -h}) \\
+		\hline
+		Consumo Eléctrico & $\approx 25\text{ mA}$ a $5\text{ V}$ ($0.13\text{ W}$ vía puerto USB) & Reposo: \pend{X.XX W}; carga: \pend{X.XX W} (\texttt{throttled=0x0}) \\
+		\hline
+	\end{tabular}
+\end{table}
+
+% --- Secciones individuales de pruebas, drivers y robustez por integrante ---
+\input{secciones/samuel}    % Medición RF1 (5 ms), latencia RNF1, Clase 20 y 21 (botones/USB HID)
+\input{secciones/emmanuel}  % Medición RF2 (ADC), memoria estática (Clase 10), Clase 20 y 21 (ADC)
+\input{secciones/emiliano}  % Medición RNF2 (háptica), consumo eléctrico (Clase 16), Clase 20 y 21 (actuadores)
+\input{secciones/adonahi}   % Métricas CPU/RAM, robustez ante fallas (systemd), Clase 8, 9, 15, 17 y 21 (udev)
+
+% =====================================================================
+% V. BITÁCORA COMPLETA DE DECISIONES DE DISEÑO (CLASES 7 A 23)
+% =====================================================================
+\section{Bitácora de Decisiones de Diseño (Clases 7 a 23)}
+
+La Tabla~\ref{tab:bitacora_completa} sintetiza la evolución de todas las decisiones arquitectónicas desde la propuesta inicial (Avance 1) hasta el sistema construido, respaldadas por archivos y mediciones reales. Posteriormente se detallan las entradas finales correspondientes a los subsistemas de comunicación, capas y controladores.
+
+\begin{table*}[!t]
+	\centering
+	\caption{Bitácora integral: decisiones planeadas frente al sistema final construido (Clases 7 a 23)}
+	\label{tab:bitacora_completa}
+	\scriptsize
+	\begin{tabular}{|p{0.9cm}|p{3.4cm}|p{4.2cm}|p{3.1cm}|p{3.8cm}|}
+		\hline
+		\textbf{Clase} & \textbf{Planeado (Avance 1)} & \textbf{Construido en el Sistema Final} & \textbf{Archivo / Evidencia} & \textbf{Diferencia y Causa} \\
+		\hline
+		7 y 18 & Arquitectura híbrida: \textit{bare-metal} en Pico y Linux embebido en Pi 4 & Se mantiene: Pico SDK \textit{bare-metal} en RP2040 y Raspberry Pi OS Lite (64 bits) en Pi 4 & \texttt{firmware/main.c}, \texttt{pi/instalar.sh} & Ninguna; confirmada con huella de $23.5\text{ KB}$ Flash y $135\text{ MB}$ RAM en reposo \\
+		\hline
+		8 & Polling de botones por Timer IRQ cada $5\text{ ms}$; RetroArch con \textit{nice} bajo & PIO + DMA autónomos cada $5.0\text{ ms}$ en Pico; \texttt{Nice=-5} en RetroArch y \texttt{Nice=10} en telemetría & \texttt{read\_74hc165.c:60}, \texttt{arcade-*.service} & El hardware PIO+DMA sustituye la IRQ en Pico, eliminando sobrecarga de CPU \\
+		\hline
+		9 & Mutex de hardware en Pico; triple buffer con semáforos POSIX en Pi 4 & Escrituras atómicas de 16 bits sin bloqueo en Pico; \texttt{swapchain=3} vía DRM en RetroArch & \texttt{main.c:24}, \texttt{ra\_gl.cfg:3261} & El DMA no toma mutex; lecturas atómicas de 16 bits evitan valores partidos \\
+		\hline
+		10 & Sin memoria dinámica (\textit{heap}) en Pico; buffers preasignados en Pi 4 & Estructuras estáticas alineadas (\texttt{aligned(8)}) en Pico ($3{,}520\text{ B}$ SRAM); cero \texttt{malloc} en lazo & \texttt{controls\_report.h} & Ninguna; cero fragmentación y determinismo garantizado \\
+		\hline
+		11 y 23 & Socket UNIX directo en RetroArch y puerto serial CDC hacia la Pico & RetroArch UDP \texttt{127.0.0.1:55355} $\rightarrow$ \texttt{telemetria.py} $\rightarrow$ socket \texttt{AF\_UNIX} $\rightarrow$ \texttt{puente\_hid.py} $\rightarrow$ HID OUT 8 B & \texttt{pi/telemetria.py}, \texttt{pi/puente\_hid.py} & RetroArch usa UDP para comandos; HID OUT evita abrir un puerto serial extra \\
+		\hline
+		12 & Temporización por periféricos en Pico; DRM/KMS y sockets en Linux & PIO + DMA en Pico; \texttt{panel-mipi-dbi} sobre SPI DRM/KMS y \texttt{hidraw} con \texttt{udev} en Pi 4 & \texttt{config\_txt\_pantalla.txt}, \texttt{99-arcade.rules} & Ninguna; descarga total de E/S crítica en periféricos y drivers del kernel \\
+		\hline
+		15 & Evitar desgaste de microSD por escritura continua de telemetría & Telemetría y socket UNIX residen en \texttt{/tmp} (\texttt{tmpfs} en RAM); cero escrituras a SD en juego & \texttt{findmnt /tmp}, \texttt{puente\_hid.py:73} & Protege la partición ext4 (\texttt{/dev/mmcblk0p2}) ante apagados bruscos \\
+		\hline
+		16 & Consumo estimado de $4.6\text{ W}$ con gobernador \texttt{ondemand} & Gobernador \texttt{ondemand} ($600\text{--}1800\text{ MHz}$), \texttt{get\_throttled=0x0}, consumo medido: \pend{X.XX W} & \texttt{vcgencmd}, medidor USB & Se reemplaza el estimado teórico por medición física real bajo carga \\
+		\hline
+		17 y 22 & Arranque autónomo con \texttt{systemd} y supervisión por \textit{watchdog} & \texttt{arcade.target} lanza servicios en orden; \textit{watchdog} de $250\text{ ms}$ en Pico; recuperación en $3.4\text{ s}$ & \texttt{pi/systemd/*.service}, \texttt{main.c:85} & Operación completamente autónoma sin teclado ni intervención manual \\
+		\hline
+		20 y 21 & Tipos de tamaño fijo, uso de \texttt{volatile} y drivers de kernel por periférico & \texttt{uint8\_t}/\texttt{uint16\_t} empaquetados, \texttt{volatile} en buffers DMA/IRQ, \texttt{usbhid}, \texttt{hidraw} y \texttt{mipi-dbi} & \texttt{lsmod}, \texttt{ls -l /dev}, \texttt{arm-none-eabi-size} & Verificado mediante inspección de símbolos y salidas del kernel \\
+		\hline
+	\end{tabular}
+\end{table*}
+
+% --- Entradas detalladas de Alan: Clase 11, Clase 20 (IPC), Clase 22 y Clase 23 ---
+\input{secciones/alan}
+
+% =====================================================================
+% VI. CONCLUSIONES GENERALES DEL EQUIPO
+% =====================================================================
+\section{Conclusiones Generales}
+
+La integración de una arquitectura embebida heterogénea permitió resolver simultáneamente los requisitos de determinismo en tiempo real estricto y capacidades multimedia complejas sin sobrepasar las restricciones de cómputo ni de presupuesto. Delegar la adquisición de botones y ejes analógicos a periféricos autónomos (PIO y DMA) en el RP2040 liberó casi por completo al procesador principal, garantizando ciclos de muestreo estables y una huella de memoria inferior al $2\%$ de los recursos disponibles.
+
+En el nodo maestro, el empleo de Raspberry Pi OS Lite sin entorno gráfico, combinado con renderizado directo DRM/KMS, prioridades diferenciadas en el planificador CFS (\textit{nice}), comunicación entre procesos mediante datagramas UNIX en memoria volátil (\texttt{tmpfs}) y supervisión de servicios con \texttt{systemd}, transformó una computadora de placa reducida en una consola arcade autónoma y tolerante a fallas. La comparación sistemática entre el diseño planeado y el sistema construido demostró la importancia de validar cada interfaz con mediciones físicas de tiempo, memoria y consumo eléctrico.
+
+% =====================================================================
+% VII. DECLARACIÓN DE USO DE INTELIGENCIA ARTIFICIAL
+% =====================================================================
+\section{Declaración de Uso de Inteligencia Artificial}
+
+Para el desarrollo de este proyecto se emplearon herramientas de inteligencia artificial generativa (**Gemini de Google** y **Claude de Anthropic**) exclusivamente como asistentes de apoyo técnico y documental. En concreto, se utilizaron para: (1) estructurar los documentos técnicos en formato IEEE \LaTeX{}, (2) analizar el cálculo de ciclos de reloj de la máquina PIO y la serialización binaria en formato \textit{little-endian} para reportes USB HID, y (3) redactar plantillas de pruebas y scripts auxiliares de diagnóstico. Todo el código fuente en C, PIO y Python, así como el alambrado físico, las mediciones instrumentales y las pruebas de robustez, fueron implementados, depurados y validados directamente por los integrantes del equipo sobre el hardware real.
+
+% =====================================================================
+% REFERENCIAS Y REPOSITORIO
+% =====================================================================
+\begin{thebibliography}{00}
+	\bibitem{rpi_docs} Raspberry Pi Ltd. (2024). ``Raspberry Pi Documentation: Linux Kernel and Device Tree''. Disponible en: \url{https://www.raspberrypi.com/documentation/}
+	\bibitem{rp2040_datasheet} Raspberry Pi Ltd. (2021). \textit{RP2040 Datasheet: A microcontroller by Raspberry Pi}.
+	\bibitem{libretro_docs} The libretro Team. \textit{RetroArch Documentation and Network Command API}. Disponible en: \url{https://docs.libretro.com/}
+	\bibitem{tusb_docs} Ha Thach. \textit{TinyUSB Documentation: Embedded USB Host/Device Stack}. Disponible en: \url{https://docs.tinyusb.org/}
+	\bibitem{linux_embedded} Yaghmour, K. et al. (2008). \textit{Building Embedded Linux Systems}, 2nd ed. O'Reilly Media.
+\end{thebibliography}
+
+\vspace{0.3cm}
+\noindent\textbf{Repositorio oficial del proyecto (código, documentación y conclusiones individuales):} \\
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
+
+\end{document}

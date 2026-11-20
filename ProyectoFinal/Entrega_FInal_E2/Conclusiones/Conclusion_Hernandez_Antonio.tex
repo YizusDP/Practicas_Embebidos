@@ -1,0 +1,40 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Conclusión Individual: Proyecto Final \\
+\large Terminal de Juegos Retro Distribuida con Mando Embebido}
+
+\author{
+\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}
+\IEEEauthorblockA{\textit{Ingeniería en Computación — Facultad de Ingeniería, UNAM} \\
+No. Cuenta: 320257780 \quad | \quad Grupo 6, Equipo 2}
+}
+
+\maketitle
+
+\section*{Aportación Técnica al Sistema}
+
+Durante el desarrollo del proyecto final, mi aportación se enfocó en la administración del sistema operativo Linux embebido en la Raspberry Pi 4, la automatización del arranque autónomo, la gestión de permisos de dispositivos y la ejecución de pruebas de robustez ante fallas.
+
+Configuré la orquestación de servicios mediante \texttt{systemd}, creando el grupo \texttt{arcade.target} y las unidades \texttt{arcade-puente.service}, \texttt{arcade-retroarch.service} y \texttt{arcade-telemetria.service} para iniciar todo el sistema automáticamente desde el encendido sin intervención humana. Ajusté las prioridades del planificador CFS de Linux asignando \texttt{Nice=-5} al proceso de emulación RetroArch para proteger la cadencia de $60\text{ FPS}$ y \texttt{Nice=10} al proceso de telemetría para evitar interferencias, además de configurar políticas de reinicio automático (\texttt{Restart=always}).
+
+En el ámbito de controladores y seguridad en espacio de usuario, implementé la regla de \texttt{udev} (\texttt{/etc/udev/rules.d/99-arcade.rules}) que identifica el mando USB HID (\texttt{VID cafe}, \texttt{PID 4001}), asigna permisos al grupo \texttt{input} y genera el enlace simbólico persistente \texttt{/dev/arcade\_hid}. También diseñé y ejecuté las pruebas de inyección de fallas (terminación abrupta del emulador mediante \texttt{kill -9} con recuperación en $3.4\text{ s}$ y reconexión en caliente del control USB) y documenté las Clases 8, 9, 10, 11, 16, 17 y 21.
+
+\section*{Aprendizajes Obtenidos}
+
+El despliegue de una consola autónoma sobre Raspberry Pi OS Lite me permitió comprender cómo transformar una distribución general de Linux en un producto embebido dedicado y tolerante a fallas. El dominio de \texttt{systemd}, reglas de \texttt{udev} y políticas de planificación (\textit{nice}) resultó fundamental para garantizar que los procesos críticos mantengan prioridad y se recuperen sin intervención de un operador.
+
+Asimismo, las pruebas de inyección de fallas evidenciaron que la robustez de un sistema embebido no depende únicamente de que el código funcione en condiciones ideales, sino de prever desconexiones físicas, cierres inesperados de procesos y protección de integridad en el sistema de archivos.
+
+\vspace{0.3cm}
+\noindent\textbf{Repositorio del proyecto:} \\
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
+
+\end{document}

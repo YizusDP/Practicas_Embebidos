@@ -1,0 +1,42 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Conclusión Individual: Proyecto Final \\
+\large Terminal de Juegos Retro Distribuida con Mando Embebido}
+
+\author{
+\IEEEauthorblockN{Jiménez Reyes Alan Yael}
+\IEEEauthorblockA{\textit{Ingeniería en Computación — Facultad de Ingeniería, UNAM} \\
+No. Cuenta: 320026726 \quad | \quad Grupo 6, Equipo 2}
+}
+
+\maketitle
+
+\section*{Aportación Técnica al Sistema}
+
+Durante el desarrollo de la terminal de juegos retro distribuida, mi participación se centró en la arquitectura de comunicación entre procesos (IPC), la extracción de telemetría en tiempo real en la Raspberry Pi 4 y la integración del canal de retroalimentación hacia el mando embebido basado en RP2040.
+
+En primer lugar, diseñé e implementé el módulo \texttt{telemetria.py}, encargado de consultar periódicamente el estado interno del juego ejecutado en RetroArch. Tras comprobar en la implementación que RetroArch no expone un socket UNIX nativo para telemetría como se había planteado inicialmente, adapté el diseño para utilizar su interfaz de comandos por red local mediante UDP en el puerto \texttt{127.0.0.1:55355} con la instrucción \texttt{READ\_CORE\_RAM}. Mediante este mecanismo se lee la dirección de memoria correspondiente al contador de vidas del jugador (\texttt{0x067} en el núcleo Nestopia para Pac-Man), detectando cambios de estado sin afectar el hilo de renderizado de video al ejecutar el proceso con prioridad baja (\texttt{Nice=10}).
+
+En segundo lugar, desarrollé el puente de comunicación \texttt{puente\_hid.py} y la interfaz IPC mediante un socket UNIX orientado a datagramas (\texttt{/tmp/arcade\_act.sock}, \texttt{AF\_UNIX}, \texttt{SOCK\_DGRAM}). Esta separación de procesos permitió aislar la lógica de lectura de memoria de la escritura directa sobre el dispositivo físico \texttt{/dev/arcade\_hid}, evitando condiciones de carrera y facilitando la recuperación automática ante fallas de desconexión física del control USB. Asimismo, implementé el empaquetado binario de las órdenes (\texttt{VIB}, \texttt{BUZ} y \texttt{LED}) hacia reportes de salida USB HID de 8 bytes en formato \textit{little-endian} mediante \texttt{struct.pack}, logrando un enlace bidireccional único con el firmware de la Raspberry Pi Pico.
+
+Finalmente, colaboré en la documentación de las decisiones de diseño de la bitácora (Clases 11, 12, 16, 18 y 20), en el seguimiento del plan de trabajo por avances y en la validación de las pruebas de integración y arranque autónomo con \texttt{systemd}.
+
+\section*{Aprendizajes Obtenidos}
+
+La construcción de este sistema embebido heterogéneo permitió contrastar en la práctica las diferencias entre un entorno \textit{bare-metal} determinista y un sistema operativo de propósito general (Linux embebido). Uno de los principales aprendizajes fue comprender que los diseños teóricos iniciales deben adaptarse frente a las restricciones reales del hardware y del software existente: por ejemplo, sustituir el enlace serial CDC por reportes de salida HID para mantener una interfaz USB limpia, o emplear datagramas UNIX para desacoplar procesos con distintos niveles de criticidad temporal.
+
+Asimismo, el trabajo con sockets, serialización binaria a nivel de bytes (\textit{endianness}), prioridades de planificación en Linux y gestión de permisos con reglas de \texttt{udev} reforzó la importancia de medir y verificar cada interfaz de extremo a extremo. Integrar hardware físico, firmware sin sistema operativo y servicios de usuario autónomos demostró cómo las decisiones de sincronización, almacenamiento en memoria volátil (\texttt{tmpfs}) y manejo de errores impactan directamente en la latencia y robustez de un producto embebido real.
+
+\vspace{0.3cm}
+\noindent\textbf{Repositorio del proyecto:} \\
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
+
+\end{document}

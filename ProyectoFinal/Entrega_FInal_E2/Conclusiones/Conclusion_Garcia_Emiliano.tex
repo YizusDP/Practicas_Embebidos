@@ -1,0 +1,40 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Conclusión Individual: Proyecto Final \\
+\large Terminal de Juegos Retro Distribuida con Mando Embebido}
+
+\author{
+\IEEEauthorblockN{García Olvera Emiliano}
+\IEEEauthorblockA{\textit{Ingeniería en Computación — Facultad de Ingeniería, UNAM} \\
+No. Cuenta: 314256009 \quad | \quad Grupo 6, Equipo 2}
+}
+
+\maketitle
+
+\section*{Aportación Técnica al Sistema}
+
+Mi participación en el proyecto se centró en el diseño, programación y validación del subsistema de retroalimentación física del mando embebido (actuadores hápticos, sonoros y visuales), así como en la recepción de comandos de salida desde el enlace USB HID.
+
+En el firmware de la Raspberry Pi Pico, desarrollé los módulos \texttt{actuadores.c} y \texttt{actuadores.h} utilizando las bibliotecas \texttt{hardware/pwm}, \texttt{hardware/gpio} y \texttt{pico/time}. Configuré el motor de vibración en el pin \texttt{GP15} con una señal PWM fija de $20\text{ kHz}$ para operar por encima del espectro audible, y el buzzer pasivo en el pin \texttt{GP12} sobre un \textit{slice} PWM independiente para variar dinámicamente su frecuencia entre $100\text{ Hz}$ y $5{,}000\text{ Hz}$ sin interferir con el motor. Los LEDs de estado en \texttt{GP10} y \texttt{GP11} se gestionaron por GPIO digital.
+
+Para garantizar que la activación de los actuadores nunca bloqueara el lazo principal de lectura de controles cada $1\text{ ms}$, implementé el apagado automático mediante alarmas asíncronas de temporizador por hardware, protegiendo los identificadores de alarma con el calificador \texttt{volatile} ante modificaciones en interrupción. Además, desarrollé la utilidad \texttt{prueba\_actuadores.py} basada en \texttt{hidapi} para validar de forma aislada los reportes de salida HID de 8 bytes desde la Raspberry Pi 4, y redacté las entradas correspondientes en la bitácora (Clases 9, 10, 16, 17, 20 y 21).
+
+\section*{Aprendizajes Obtenidos}
+
+Implementar el control concurrente de múltiples actuadores en un entorno \textit{bare-metal} reforzó la importancia de utilizar temporizadores no bloqueantes y arquitecturas orientadas a eventos. Si se hubieran utilizado retardos activos (\texttt{sleep}), el envío de reportes de botones habría perdido determinismo e incrementado el \textit{input lag}.
+
+De igual forma, trabajar en la decodificación de tramas binarias en formato \textit{little-endian} (\texttt{le16}) y en la asignación independiente de canales PWM me permitió consolidar el manejo directo de registros de periféricos y la depuración ordenada por módulos mediante scripts de prueba independientes.
+
+\vspace{0.3cm}
+\noindent\textbf{Repositorio del proyecto:} \\
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
+
+\end{document}

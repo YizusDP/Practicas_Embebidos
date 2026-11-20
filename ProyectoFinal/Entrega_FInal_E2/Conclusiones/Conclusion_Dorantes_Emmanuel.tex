@@ -1,0 +1,40 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Conclusión Individual: Proyecto Final \\
+\large Terminal de Juegos Retro Distribuida con Mando Embebido}
+
+\author{
+\IEEEauthorblockN{Dorantes Mejía Emmanuel}
+\IEEEauthorblockA{\textit{Ingeniería en Computación — Facultad de Ingeniería, UNAM} \\
+No. Cuenta: 313004766 \quad | \quad Grupo 6, Equipo 2}
+}
+
+\maketitle
+
+\section*{Aportación Técnica al Sistema}
+
+Durante la realización del proyecto final, mi aportación principal consistió en el diseño e implementación del subsistema de adquisición de señales analógicas en la Raspberry Pi Pico, así como en la definición de las estrategias de sincronización y gestión de memoria estática en el firmware \textit{bare-metal}.
+
+Desarrollé los módulos \texttt{read\_adc.c} y \texttt{read\_adc.h} utilizando las bibliotecas de bajo nivel \texttt{hardware/adc} y \texttt{hardware/dma} del Pico SDK para digitalizar los ejes analógicos del mando (joystick y potenciómetro) con una resolución de 12 bits. Configuré el convertidor analógico-digital en modo \textit{round-robin} sobre cuatro canales a una tasa de $4{,}000$ muestras por segundo por canal ($16{,}000$ conversiones por segundo en total con divisor de reloj de $2999$ a $48\text{ MHz}$), logrando un tiempo de actualización de $0.25\text{ ms}$, cuarenta veces más rápido que el requisito mínimo de $10\text{ ms}$.
+
+Para evitar cualquier sobrecarga sobre el procesador principal, enlacé dos canales DMA en configuración de anillo circular de 8 bytes (\texttt{DMA\_SIZE\_16}), volcando cada muestra directamente hacia el arreglo \texttt{g\_controls.axis} en SRAM. Dado que el DMA en anillo del RP2040 exige alineación en memoria a potencia de dos, aseguré la estructura compartida con \texttt{\_\_attribute\_\_((aligned(8)))} e implementé la función \texttt{read\_adc\_is\_alive()} para supervisar el avance continuo de las conversiones desde el \textit{watchdog}. También colaboré en el armado físico del prototipo y en la documentación de las Clases 8, 9, 10, 15, 18, 20 y 21.
+
+\section*{Aprendizajes Obtenidos}
+
+El diseño de la adquisición analógica por DMA me permitió comprender a fondo las restricciones físicas de los controladores de acceso directo a memoria, tales como la alineación estricta de direcciones y el uso de transferencias atómicas de 16 bits para prevenir lecturas parciales sin necesidad de bloqueos por software.
+
+Asimismo, aplicar una política de asignación de memoria completamente estática sin uso de memoria dinámica (\textit{heap}) demostró cómo se elimina la fragmentación y se garantiza un comportamiento determinista en microcontroladores de recursos limitados.
+
+\vspace{0.3cm}
+\noindent\textbf{Repositorio del proyecto:} \\
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
+
+\end{document}

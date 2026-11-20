@@ -1,0 +1,40 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[spanish,es-nodecimaldot,es-noshorthands]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Conclusión Individual: Proyecto Final \\
+\large Terminal de Juegos Retro Distribuida con Mando Embebido}
+
+\author{
+\IEEEauthorblockN{Domínguez Palacios Jesús Alejandro}
+\IEEEauthorblockA{\textit{Ingeniería en Computación — Facultad de Ingeniería, UNAM} \\
+No. Cuenta: 421066205 \quad | \quad Grupo 6, Equipo 2}
+}
+
+\maketitle
+
+\section*{Aportación Técnica al Sistema}
+
+En el desarrollo de la terminal de juegos retro distribuida, mi contribución se centró en la integración general de la arquitectura del sistema, la configuración del subsistema de despliegue gráfico en la Raspberry Pi 4 y la optimización del motor de emulación RetroArch sobre Linux embebido.
+
+Para la salida de video integrada al gabinete, configuré la pantalla TFT SPI de 3.5 pulgadas basada en el controlador ST7796S operando a $50\text{ MHz}$ mediante el controlador genérico del kernel \texttt{panel-mipi-dbi} sobre el bus \texttt{spi-bcm2835}. Generé la secuencia binaria de inicialización del panel (\texttt{gen\_st7796.py} hacia \texttt{/lib/firmware/st7796s.bin}) con la orientación horizontal adecuada (\texttt{MADCTL = 0x28}) y habilité el dispositivo DRM (\texttt{/dev/dri/cardX}) en \texttt{/boot/firmware/config.txt} para que RetroArch renderizara directamente por hardware (KMS/DRM, archivo \texttt{ra\_gl.cfg}) sin necesidad de cargar un entorno de escritorio gráfico.
+
+Asimismo, realicé el análisis cuantitativo del ancho de banda de video, calculando la conversión de formato de píxel de \texttt{XRGB8888} a \texttt{RGB565} ($307{,}200\text{ bytes}$ por cuadro a $480 \times 320$) y determinando el límite físico de transferencia del bus SPI ($49.15\text{ ms}$ por cuadro, equivalente a $20.35\text{ FPS}$). Además, elaboré los diagramas de bloques evolutivos del proyecto, documenté el flujo de datos de extremo a extremo y redacté las entradas correspondientes en la bitácora (Clases 7, 8, 15, 18, 20 y 21).
+
+\section*{Aprendizajes Obtenidos}
+
+Trabajar con el subsistema DRM/KMS de Linux embebido me permitió entender cómo interactúan los procesos en espacio de usuario con los controladores gráficos del kernel para minimizar latencias y consumo de memoria RAM. Prescindir de un servidor gráfico tradicional redujo drásticamente la huella del sistema operativo, dejando más del $85\%$ de la memoria disponible para la emulación.
+
+Finalmente, calcular los tiempos de transferencia del bus SPI frente a la resolución de pantalla demostró cómo los cuellos de botella de hardware condicionan el rendimiento final del sistema, subrayando la necesidad de respaldar cada decisión de ingeniería con mediciones reales y cálculos de ancho de banda.
+
+\vspace{0.3cm}
+\noindent\textbf{Repositorio del proyecto:} \\
+\url{https://github.com/YizusDP/Practicas_Embebidos/tree/main/ProyectoFinal}
+
+\end{document}
