@@ -1,0 +1,39 @@
+% =====================================================================
+% Sección de Belmont Muñoz Samuel
+% Medición RF1 (5 ms), latencia RNF1, Clase 20 y 21 (botones/USB HID)
+% =====================================================================
+
+\subsection{Medición RF1: Periodo de Muestreo de Botones}
+
+\textbf{Requisito RF1:} Periodo de $5.0 \pm 0.5\text{ ms}$ ($200\text{ Hz}$).
+
+\textbf{Medición pendiente:}
+\begin{itemize}
+	\item Periodo promedio medido: \pend{X.XX ms}
+	\item Desviación estándar: \pend{X.XX ms}
+	\item Mínimo/máximo: \pend{X.XX ms} / \pend{X.XX ms}
+	\item Muestras analizadas: \pend{10,000}
+\end{itemize}
+
+\textbf{Veredicto:} \pend{Cumple / No cumple}
+
+\subsection{Medición RNF1: Latencia de Control (Input Lag)}
+
+\textbf{Requisito RNF1:} Latencia extremo a extremo $\le 15\text{ ms}$.
+
+\textbf{Medición pendiente:} Latencia física medida botón → reporte HID / respuesta en pantalla: \pend{XX.X ms}
+
+\subsection{Clase 20 y 21: Botones y USB HID}
+
+\textbf{Clase 20 (Tipos de datos):}
+\begin{itemize}
+	\item Uso de \texttt{uint16\_t} para botones (16 bits, 10 usados)
+	\item \texttt{sizeof(controls\_report)} = \pend{XX bytes}
+\end{itemize}
+
+\textbf{Clase 21 (Drivers):}
+\begin{itemize}
+	\item Botones: PIO + DMA (driver propio en firmware)
+	\item USB HID: TinyUSB stack
+	\item Evidencia: salida de \texttt{arm-none-eabi-size}
+\end{itemize}

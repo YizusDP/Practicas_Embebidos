@@ -1,0 +1,73 @@
+% =====================================================================
+% Sección de Jiménez Reyes Alan Yael
+% Clase 11, Clase 20 (IPC), Clase 22 y Clase 23
+% =====================================================================
+
+\subsection{Clase 11: Comunicación entre Procesos (IPC)}
+
+\textbf{Arquitectura implementada:}
+
+\begin{figure}[H]
+	\centering
+	\begin{small}
+	\texttt{RetroArch} (UDP 55355) $\rightarrow$ \texttt{telemetria.py} $\rightarrow$ \\
+	\texttt{/tmp/arcade\_act.sock} (AF\_UNIX DGRAM) $\rightarrow$ \\
+	\texttt{puente\_hid.py} $\rightarrow$ \texttt{/dev/arcade\_hid} (HID OUT) $\rightarrow$ Pico
+	\end{small}
+	\caption{Flujo de comunicación entre procesos en la Pi 4.}
+	\label{fig:ipc_flow}
+\end{figure}
+
+\textbf{Justificación del diseño:}
+\begin{itemize}
+	\item RetroArch expone UDP \texttt{127.0.0.1:55355} para comandos de red
+	\item Socket UNIX de datagramas conserva límites de mensaje
+	\item No pasa por pila TCP/IP (más rápido para IPC local)
+	\item Puente único escritor en HID evita carreras
+\end{itemize}
+
+\textbf{Diferencia con el plan:}
+\begin{itemize}
+	\item Planeado: Socket UNIX directo en RetroArch
+	\item Construido: RetroArch UDP + socket UNIX entre procesos Python
+	\item Causa: RetroArch usa UDP para comandos de red por diseño
+\end{itemize}
+
+\subsection{Clase 20: Tipos de Datos en IPC}
+
+\textbf{Protocolo HID OUT (8 bytes):}
+\begin{lstlisting}[language=C]
+struct hid_out_report {
+    uint8_t cmd_type;    // 0x01=VIB, 0x02=BUZ, 0x03=LED
+    uint8_t reserved;
+    uint16_t param1;     // frecuencia o duracion
+    uint16_t param2;     // duracion
+    uint16_t checksum;
+} __attribute__((packed));
+\end{lstlisting}
+
+\subsection{Clase 22: Raíz del Sistema (Read-Only)}
+
+\textbf{Estado actual:}
+\begin{itemize}
+	\item Sistema de archivos: ext4 en lectura-escritura
+	\item Planeado para Avance 4: raíz en solo lectura (\texttt{ro})
+	\item Protección actual: telemetría en \texttt{tmpfs} (Clase 15)
+\end{itemize}
+
+\subsection{Clase 23: Integración Final de Capas}
+
+\textbf{Validación del sistema completo:}
+\begin{itemize}
+	\item Capa física: Botones $\rightarrow$ 74HC165 $\rightarrow$ PIO
+	\item Capa de enlace: USB HID (reportes cada 1 ms)
+	\item Capa de aplicación: RetroArch + telemetría Python
+	\item Orquestación: systemd con recuperación automática
+\end{itemize}
+
+\textbf{Pruebas de integración:}
+\begin{enumerate}
+	\item Botón $\rightarrow$ movimiento en pantalla: \pend{Validado}
+	\item Pérdida de vida $\rightarrow$ vibración: \pend{Validado}
+	\item Desconexión USB $\rightarrow$ reconexión: \pend{Validado}
+\end{enumerate}

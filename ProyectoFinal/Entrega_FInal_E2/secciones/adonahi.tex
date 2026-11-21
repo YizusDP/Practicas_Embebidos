@@ -1,0 +1,75 @@
+% =====================================================================
+% Sección de Hernández Alonso Antonio Adonahí
+% Métricas CPU/RAM, robustez ante fallas (systemd), Clase 8, 9, 15, 17 y 21 (udev)
+% =====================================================================
+
+\subsection{Métricas de CPU y RAM en Raspberry Pi 4}
+
+\textbf{Uso de CPU:}
+\begin{itemize}
+	\item RetroArch: \pend{XX\%} (medido con \texttt{top})
+	\item Python IPC (telemetría + puente): \pend{X.X\%}
+	\item CPU idle: \pend{XX\%}
+\end{itemize}
+
+\textbf{Uso de RAM:}
+\begin{itemize}
+	\item Sistema en reposo: 135 MB / 1 GB
+	\item Sistema en juego (Pac-Man): \pend{XXX MB}
+	\item Medido con: \texttt{free -h}
+\end{itemize}
+
+\subsection{Robustez ante Fallas (systemd)}
+
+\textbf{Falla F1: Proceso RetroArch muerto}
+\begin{itemize}
+	\item Inducción: \texttt{sudo kill -9 \$(pidof retroarch)}
+	\item Mecanismo: \texttt{Restart=always} en \texttt{arcade-retroarch.service}
+	\item Tiempo de recuperación: 3.4 segundos
+	\item Evidencia: \texttt{journalctl -u arcade-retroarch}
+\end{itemize}
+
+\textbf{Falla F2: Control USB desconectado}
+\begin{itemize}
+	\item Inducción: Desconectar físicamente el cable USB
+	\item Mecanismo: \texttt{puente\_hid.py} reintenta abrir \texttt{/dev/arcade\_hid} cada 1 segundo
+	\item Estado: \pend{Validado / Pendiente}
+\end{itemize}
+
+\subsection{Clases 8, 9, 15, 17 y 21}
+
+\textbf{Clase 8 (Planificación):}
+\begin{itemize}
+	\item RetroArch: \texttt{Nice=-5} (prioridad alta)
+	\item Telemetría: \texttt{Nice=10} (prioridad baja)
+	\item Archivo: \texttt{pi/systemd/arcade-*.service}
+\end{itemize}
+
+\textbf{Clase 9 (Sincronización):}
+\begin{itemize}
+	\item Pico: NO hay spin lock (transferencias atómicas de 16 bits)
+	\item Pi: puente único escritor en \texttt{/dev/arcade\_hid}
+	\item Triple buffer: RetroArch DRM (\texttt{ra\_gl.cfg:3261})
+\end{itemize}
+
+\textbf{Clase 15 (Sistema de archivos):}
+\begin{itemize}
+	\item Telemetría y socket UNIX en \texttt{/tmp} (\texttt{tmpfs} en RAM)
+	\item Cero escrituras a microSD durante el juego
+	\item Evidencia: \texttt{findmnt /tmp}
+\end{itemize}
+
+\textbf{Clase 17 (Arranque autónomo):}
+\begin{itemize}
+	\item \texttt{arcade.target} agrupa 3 servicios
+	\item Todos con \texttt{Restart=always}
+	\item Arranca sin teclado ni intervención manual
+\end{itemize}
+
+\textbf{Clase 21 (Drivers y udev):}
+\begin{itemize}
+	\item Control USB: \texttt{usbhid} $\rightarrow$ \texttt{/dev/input/eventX}
+	\item Pantalla: \texttt{panel-mipi-dbi} (módulo kernel)
+	\item Regla udev: \texttt{/etc/udev/rules.d/99-arcade.rules}
+	\item Evidencia: \texttt{lsmod | grep mipi}, \texttt{ls -l /dev/arcade\_hid}
+\end{itemize}

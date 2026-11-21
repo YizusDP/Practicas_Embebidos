@@ -1,0 +1,42 @@
+% =====================================================================
+% Sección de García Olvera Emiliano
+% Medición RNF2 (háptica), consumo eléctrico (Clase 16), Clase 20 y 21 (actuadores)
+% =====================================================================
+
+\subsection{Medición RNF2: Respuesta Háptica}
+
+\textbf{Requisito RNF2:} Activación del motor $\le 50\text{ ms}$ tras señal.
+
+\textbf{Medición pendiente:}
+\begin{itemize}
+	\item Tiempo medido desde comando hasta activación PWM: \pend{XX.X ms}
+	\item Implementación: PWM a 20 kHz mediante alarma no bloqueante
+\end{itemize}
+
+\textbf{Veredicto:} \pend{Cumplido}
+
+\subsection{Clase 16: Consumo Eléctrico}
+
+\textbf{Mediciones de consumo:}
+\begin{itemize}
+	\item Raspberry Pi Pico: $\approx 25\text{ mA}$ a $5\text{ V}$ = $0.13\text{ W}$
+	\item Raspberry Pi 4 en reposo: \pend{X.XX W}
+	\item Raspberry Pi 4 bajo carga (jugando): \pend{X.XX W}
+	\item Gobernador: \texttt{ondemand} (600--1800 MHz)
+	\item Estado térmico: \texttt{vcgencmd get\_throttled} = \texttt{0x0}
+\end{itemize}
+
+\subsection{Clase 20 y 21: Actuadores}
+
+\textbf{Clase 20 (Tipos):}
+\begin{itemize}
+	\item Comandos HID OUT de 8 bytes (tipo + parámetros)
+	\item Uso de \texttt{volatile} en variables compartidas con IRQ
+\end{itemize}
+
+\textbf{Clase 21 (Drivers):}
+\begin{itemize}
+	\item Motor y buzzer: \texttt{hardware/pwm} (slices PWM del RP2040)
+	\item LEDs: \texttt{hardware/gpio}
+	\item Evidencia: configuración en \texttt{actuadores.c}
+\end{itemize}

@@ -1,0 +1,46 @@
+% =====================================================================
+% Sección de Dorantes Mejía Emmanuel
+% Medición RF2 (ADC), memoria estática (Clase 10), Clase 20 y 21 (ADC)
+% =====================================================================
+
+\subsection{Medición RF2: Lectura Analógica de Eje (ADC)}
+
+\textbf{Requisito RF2:} Resolución $\ge 10\text{ bits}$, periodo $\le 10\text{ ms}$.
+
+\textbf{Resultado construido:}
+\begin{itemize}
+	\item Resolución: 12 bits (0 a 4095)
+	\item Frecuencia de muestreo: 4 kHz por canal (0.25 ms por muestra)
+	\item Implementación: DMA circular en round-robin
+\end{itemize}
+
+\textbf{Veredicto:} Cumplido (supera el requisito de 10 bits y 10 ms)
+
+\subsection{Clase 10: Memoria Estática}
+
+\textbf{Estrategia de memoria en Pico:}
+\begin{itemize}
+	\item Cero uso de heap (sin \texttt{malloc})
+	\item Estructuras estáticas alineadas (\texttt{aligned(8)})
+	\item Buffers preasignados para DMA
+\end{itemize}
+
+\textbf{Mediciones:}
+\begin{itemize}
+	\item Flash utilizada: 23,476 bytes (1.1\%)
+	\item SRAM utilizada: 3,520 bytes (1.3\%)
+\end{itemize}
+
+\subsection{Clase 20 y 21: ADC}
+
+\textbf{Clase 20 (Tipos):}
+\begin{itemize}
+	\item \texttt{uint16\_t} para valores ADC (12 bits caben en 16)
+	\item Estructura \texttt{controls\_report} empaquetada
+\end{itemize}
+
+\textbf{Clase 21 (Driver):}
+\begin{itemize}
+	\item Driver: \texttt{hardware/adc} del Pico SDK
+	\item Evidencia: configuración en \texttt{adc\_pot.c}
+\end{itemize}
