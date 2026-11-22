@@ -101,7 +101,7 @@
 \end{center}
 
 \begin{abstract}
-Este documento presenta el diseño, implementación y validación experimental de una terminal de juegos retro distribuida basada en hardware embebido. La arquitectura divide responsabilidades entre un nodo esclavo determinista (Raspberry Pi Pico, RP2040) ejecutando firmware \textit{bare-metal} y un nodo maestro (Raspberry Pi 4 Model B) corriendo RetroArch sobre Raspberry Pi OS Lite. El mando embebido adquiere 10 botones digitales mediante dos registros de desplazamiento 74HC165 en cascada con filtrado RC por hardware, gestionados por una máquina de estados PIO y canales DMA encadenados a $200\text{ Hz}$ ($5.0\text{ ms}$), junto con ejes analógicos mediante ADC a $4\text{ kHz}$ por canal. La comunicación con la consola opera mediante un enlace único USB HID bidireccional: reportes de entrada de 10 bytes cada $1\text{ ms}$ y reportes de salida de 8 bytes para gobernar actuadores hápticos, sonoros y visuales sin bloquear el lazo principal. En la consola, el despliegue gráfico se realiza por SPI a $50\text{ MHz}$ sobre una pantalla TFT de 3.5 pulgadas mediante DRM/KMS, mientras que un esquema de comunicación entre procesos (UDP local y socket \texttt{AF\_UNIX}) extrae telemetría de memoria en tiempo real y controla los actuadores bajo orquestación autónoma con \texttt{systemd}. Se reportan las métricas experimentales de latencia, uso de CPU, huella de memoria, consumo energético y tolerancia a fallas.
+Este documento presenta el diseño, implementación y validación experimental de una terminal de juegos retro distribuida basada en hardware embebido. La arquitectura divide responsabilidades entre un nodo esclavo determinista (Raspberry Pi Pico, RP2040) ejecutando firmware \textit{bare-metal} y un nodo maestro (Raspberry Pi 4 Model B) corriendo RetroArch sobre Raspberry Pi OS Lite. El mando embebido adquiere 10 botones digitales mediante dos registros de desplazamiento 74HC165 en cascada con filtrado RC por hardware, gestionados por una máquina de estados PIO y canales DMA encadenados a $200\text{ Hz}$ ($5.0\text{ ms}$), junto con ejes analógicos mediante ADC a $4\text{ kHz}$ por canal. La comunicación con la consola opera mediante un enlace único USB HID bidireccional: reportes de entrada de 10 bytes cada $1\text{ ms}$ y reportes de salida de 8 bytes para gobernar actuadores hápticos, sonoros y visuales sin bloquear el lazo principal. En la consola, el despliegue gráfico se realiza por SPI a $50\text{ MHz}$ sobre una pantalla TFT de 3.5 pulgadas mediante DRM/KMS, mientras que un esquema de comunicación entre procesos (UDP local y socket \texttt{AF\_UNIX}) identifica el título activo, extrae telemetría de memoria en tiempo real y controla los actuadores bajo orquestación autónoma con \texttt{systemd}. Se reportan las métricas experimentales de latencia, uso de CPU, huella de memoria, consumo energético y tolerancia a fallas.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -118,7 +118,7 @@ Los sistemas de emulación arcade de bajo costo suelen depender de periféricos 
 
 \subsection{Alcance Implementado y Delimitación}
 \begin{itemize}
-	\item \textbf{Implementado:} Control físico basado en RP2040 con 10 botones digitales (74HC165 $\times 2$ con antirrebote RC), entrada analógica ADC, actuadores (motor de vibración, buzzer pasivo y LEDs), comunicación bidireccional USB HID, emulación en Raspberry Pi 4 sobre pantalla TFT SPI de 3.5 pulgadas, telemetría de memoria en tiempo real con IPC por socket UNIX y arranque autónomo tolerante a fallas mediante \texttt{systemd}.
+	\item \textbf{Implementado:} Control físico basado en RP2040 con 10 botones digitales (74HC165 $\times 2$ con antirrebote RC), entrada analógica ADC, actuadores (motor de vibración, buzzer pasivo a $2{,}700\text{ Hz}$ y LEDs), comunicación bidireccional USB HID, emulación en Raspberry Pi 4 sobre pantalla TFT SPI de 3.5 pulgadas, telemetría de memoria multijuego en tiempo real con IPC por socket UNIX y arranque autónomo tolerante a fallas mediante \texttt{systemd}.
 	\item \textbf{Ajuste de interfaz de video:} Respecto a la salida externa HDMI a $60\text{ FPS}$ contemplada en el Avance 1, en el prototipo final se integró una pantalla TFT portátil de 3.5'' sobre el bus SPI0 ($50\text{ MHz}$), manteniendo la lógica de emulación interna a $60\text{ Hz}$ con una tasa real de refresco visual en panel de $20.35\text{ FPS}$ ($49.15\text{ ms}$ por cuadro).
 	\item \textbf{Fuera de alcance final:} Desarrollo de motores de juego o ROMs propias, multijugador remoto WAN por VPN (WireGuard) y multijugador local en red LAN (declarado explícitamente en la Sección~\ref{sec:requisitos} al priorizar la integración física del gabinete y la telemetría háptica).
 \end{itemize}
@@ -144,7 +144,7 @@ La Tabla~\ref{tab:requisitos} contrasta los requisitos funcionales (RF) y no fun
 		\hline
 		RF2 & Lectura analógica de eje (ADC) & Resolución $\ge 10\text{ bits}$, periodo $\le 10\text{ ms}$ & Resolución de $12\text{ bits}$ en \textit{round-robin} a $4\text{ kHz}$/canal ($0.25\text{ ms}$ por muestra) con DMA circular & \textbf{Cumplido} \\
 		\hline
-		RF3 & Telemetría y retroalimentación bidireccional & Recepción de comando en esclavo $< 20\text{ ms}$ tras evento & Lectura UDP en \texttt{127.0.0.1:55355} + socket UNIX + HID OUT de 8 bytes en \pend{X.X ms} & \textbf{Cumplido} \\
+		RF3 & Telemetría y retroalimentación bidireccional & Recepción de comando en esclavo $< 20\text{ ms}$ tras evento & Lectura UDP (\texttt{127.0.0.1:55355}) + identificación de ROM en \texttt{historial.lpl} + socket UNIX + HID OUT (8 B) en \pend{X.X ms} & \textbf{Cumplido} \\
 		\hline
 		RNF1 & Latencia de control (\textit{Input Lag}) & Extremo a extremo $\le 15\text{ ms}$ & Latencia física medida botón $\rightarrow$ recepción HID en emulador: \pend{XX.X ms} & \pend{Cumplido} \\
 		\hline
@@ -178,7 +178,7 @@ El costo total de materiales del prototipo armado asciende a \textbf{\$1,620 MXN
 \section{Implementación, Métricas y Pruebas}
 
 \subsection{Resumen de Métricas Experimentales del Sistema}
-La Tabla~\ref{tab:metricas_finales} consolida las cuatro métricas de desempeño medidas directamente sobre el sistema físico operando en condiciones normales de juego (emulación de Pac-Man, Pong y Tetris con telemetría activa).
+La Tabla~\ref{tab:metricas_finales} consolida las cuatro métricas de desempeño medidas directamente sobre el sistema físico operando en condiciones normales de juego (emulación de \textit{Pac-Man}, \textit{Pong} y \textit{Tetris} con telemetría activa).
 
 \begin{table}[H]
 	\centering
@@ -201,22 +201,22 @@ La Tabla~\ref{tab:metricas_finales} consolida las cuatro métricas de desempeño
 \end{table}
 
 \subsection{Validación Funcional con Títulos de Prueba}
-Para verificar todos los subsistemas de entrada y retroalimentación de la consola, se ejecutaron pruebas integrales con tres títulos clásicos sobre RetroArch, ejercitando distintas combinaciones de periféricos sin necesidad de incluir binarios propietarios en el repositorio (Tabla~\ref{tab:juegos_prueba}).
+Para verificar todos los subsistemas de entrada y retroalimentación de la consola, se ejecutaron pruebas integrales con tres títulos clásicos sobre RetroArch, ejercitando distintas combinaciones de periféricos sin necesidad de incluir binarios propietarios en el repositorio (Tabla~\ref{tab:juegos_prueba}). El módulo \texttt{pi/telemetria.py} identifica automáticamente la ROM abierta mediante \texttt{historial.lpl} y dispara vibración ($500\text{ ms}$), tono de buzzer ($2{,}700\text{ Hz}$ por $500\text{ ms}$) y encendido temporal de LEDs ante cada evento.
 
 \begin{table}[H]
 	\centering
-	\caption{Cobertura de subsistemas por título emulado}
+	\caption{Cobertura de subsistemas por título emulado y telemetría RAM}
 	\label{tab:juegos_prueba}
 	\footnotesize
-	\begin{tabular}{|p{1.5cm}|p{2.6cm}|p{3.1cm}|}
+	\begin{tabular}{|p{1.4cm}|p{2.5cm}|p{3.3cm}|}
 		\hline
-		\textbf{Título} & \textbf{Entradas Utilizadas} & \textbf{Validación del Sistema} \\
+		\textbf{Título} & \textbf{Entradas Utilizadas} & \textbf{Validación y Telemetría RAM} \\
 		\hline
-		\textit{Pac-Man} & 4 botones direccionales + Start (74HC165) & Telemetría RAM (\texttt{0x067}) y disparo háptico/sonoro al perder vida \\
+		\textit{Pac-Man} (\texttt{pacman.nes}) & 4 botones direccionales + Start (74HC165) & Monitoreo de vidas en \texttt{0x067} (decremento) $\rightarrow$ activa vibración ($500\text{ ms}$), buzzer ($2{,}700\text{ Hz}$) y LEDs \\
 		\hline
-		\textit{Pong} & Potenciómetro analógico (ADC 12 bits) & Control proporcional continuo sin fluctuaciones ni ruido en eje \\
+		\textit{Pong} (\texttt{pong.nes}) & Potenciómetro analógico (ADC 12 bits) & Control proporcional continuo sin ruido + lectura de puntos en contra en \texttt{0x013} (incremento) \\
 		\hline
-		\textit{Tetris} & Botones direccionales y de acción rápida & Antirrebote RC y muestreo PIO a $200\text{ Hz}$ sin pulsaciones dobles \\
+		\textit{Tetris} (\texttt{tetris.nes}) & Botones direccionales y acción rápida & Antirrebote RC + PIO a $200\text{ Hz}$ sin dobles pulsaciones + detección de \textit{Game Over} en \texttt{0x048 == 10} \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -251,11 +251,11 @@ La Tabla~\ref{tab:bitacora_completa} sintetiza la evolución de todas las decisi
 		\hline
 		10 & Sin memoria dinámica (\textit{heap}) en Pico; buffers preasignados en Pi 4 & Estructuras estáticas alineadas (\texttt{aligned(8)}) en Pico ($3{,}520\text{ B}$ SRAM); cero \texttt{malloc} en lazo & \texttt{controls\_report.h} & Ninguna; cero fragmentación y determinismo garantizado \\
 		\hline
-		11 y 23 & Socket UNIX directo en RetroArch y puerto serial CDC hacia la Pico & RetroArch UDP \texttt{127.0.0.1:55355} $\rightarrow$ \texttt{telemetria.py} $\rightarrow$ socket \texttt{AF\_UNIX} $\rightarrow$ \texttt{puente\_hid.py} $\rightarrow$ HID OUT 8 B & \texttt{pi/telemetria.py}, \texttt{pi/puente\_hid.py} & RetroArch usa UDP para comandos; HID OUT evita abrir un puerto serial extra \\
+		11 y 23 & Socket UNIX directo en RetroArch y puerto serial CDC hacia la Pico & RetroArch UDP \texttt{127.0.0.1:55355} + lectura de \texttt{historial.lpl} $\rightarrow$ \texttt{telemetria.py} $\rightarrow$ socket \texttt{AF\_UNIX} $\rightarrow$ \texttt{puente\_hid.py} $\rightarrow$ HID OUT 8 B & \texttt{pi/telemetria.py}, \texttt{pi/puente\_hid.py} & RetroArch usa UDP para comandos; se identifica la ROM activa en \texttt{historial.lpl} para evitar falsos positivos en RAM \\
 		\hline
 		12 & Temporización por periféricos en Pico; DRM/KMS y sockets en Linux & PIO + DMA en Pico; \texttt{panel-mipi-dbi} sobre SPI DRM/KMS y \texttt{hidraw} con \texttt{udev} en Pi 4 & \texttt{config\_txt\_pantalla.txt}, \texttt{99-arcade.rules} & Ninguna; descarga total de E/S crítica en periféricos y drivers del kernel \\
 		\hline
-		15 & Evitar desgaste de microSD por escritura continua de telemetría & Telemetría y socket UNIX residen en \texttt{/tmp} (\texttt{tmpfs} en RAM); cero escrituras a SD en juego & \texttt{findmnt /tmp}, \texttt{puente\_hid.py:73} & Protege la partición ext4 (\texttt{/dev/mmcblk0p2}) ante apagados bruscos \\
+		15 & Evitar desgaste de microSD por escritura continua de telemetría & Telemetría y socket UNIX residen en \texttt{/tmp} (\texttt{tmpfs} en RAM); cero escrituras a SD en juego & \texttt{findmnt /tmp}, \texttt{telemetria.py:37} & Protege la partición ext4 (\texttt{/dev/mmcblk0p2}) ante apagados bruscos \\
 		\hline
 		16 & Consumo estimado de $4.6\text{ W}$ con gobernador \texttt{ondemand} & Gobernador \texttt{ondemand} ($600\text{--}1800\text{ MHz}$), \texttt{get\_throttled=0x0}, consumo medido: \pend{X.XX W} & \texttt{vcgencmd}, medidor USB & Se reemplaza el estimado teórico por medición física real bajo carga \\
 		\hline
