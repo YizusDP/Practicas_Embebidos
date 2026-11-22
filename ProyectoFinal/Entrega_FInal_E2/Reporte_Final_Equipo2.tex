@@ -101,7 +101,7 @@
 \end{center}
 
 \begin{abstract}
-Este documento presenta el diseño, implementación y validación experimental de una terminal de juegos retro distribuida basada en hardware embebido. La arquitectura divide responsabilidades entre un nodo esclavo determinista (Raspberry Pi Pico, RP2040) ejecutando firmware \textit{bare-metal} y un nodo maestro (Raspberry Pi 4 Model B) corriendo RetroArch sobre Raspberry Pi OS Lite. El mando embebido adquiere 10 botones digitales mediante dos registros de desplazamiento 74HC165 en cascada con filtrado RC por hardware, gestionados por una máquina de estados PIO y canales DMA encadenados a $200\text{ Hz}$ ($5.0\text{ ms}$), junto con ejes analógicos mediante ADC a $4\text{ kHz}$ por canal. La comunicación con la consola opera mediante un enlace único USB HID bidireccional: reportes de entrada de 10 bytes cada $1\text{ ms}$ y reportes de salida de 8 bytes para gobernar actuadores hápticos, sonoros y visuales sin bloquear el lazo principal. En la consola, el despliegue gráfico se realiza por SPI a $50\text{ MHz}$ sobre una pantalla TFT de 3.5 pulgadas mediante DRM/KMS, mientras que un esquema de comunicación entre procesos (UDP local y socket \texttt{AF\_UNIX}) identifica el título activo, extrae telemetría de memoria en tiempo real y controla los actuadores bajo orquestación autónoma con \texttt{systemd}. Se reportan las métricas experimentales de latencia, uso de CPU, huella de memoria, consumo energético y tolerancia a fallas.
+Este documento presenta el diseño, implementación y validación experimental de una terminal de juegos retro distribuida basada en hardware embebido. La arquitectura divide responsabilidades entre un nodo esclavo determinista (Raspberry Pi Pico, RP2040) ejecutando firmware \textit{bare-metal} y un nodo maestro (Raspberry Pi 4 Model B) corriendo RetroArch sobre Raspberry Pi OS Lite. El mando embebido adquiere 10 botones digitales mediante dos registros de desplazamiento 74HC165 en cascada con filtrado RC por hardware, gestionados por una máquina de estados PIO y canales DMA encadenados a $200\text{ Hz}$ ($5.0\text{ ms}$), junto con ejes analógicos mediante ADC a $4\text{ kHz}$ por canal. La comunicación con la consola opera mediante un enlace único USB HID bidireccional: reportes de entrada de 10 bytes cada $1\text{ ms}$ y reportes de salida de 8 bytes para gobernar actuadores hápticos, sonoros y visuales sin bloquear el lazo principal. En la consola, el despliegue gráfico se realiza por SPI a $50\text{ MHz}$ sobre una pantalla TFT de 3.5 pulgadas mediante DRM/KMS ($18.3\text{ FPS}$ medidos), mientras que un esquema de comunicación entre procesos (UDP local y socket \texttt{AF\_UNIX}) identifica el título activo, extrae telemetría de memoria en tiempo real y controla los actuadores bajo orquestación autónoma con \texttt{systemd}. Se reportan las métricas experimentales de latencia, uso de CPU, huella de memoria, consumo energético y tolerancia a fallas.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -119,7 +119,7 @@ Los sistemas de emulación arcade de bajo costo suelen depender de periféricos 
 \subsection{Alcance Implementado y Delimitación}
 \begin{itemize}
 	\item \textbf{Implementado:} Control físico basado en RP2040 con 10 botones digitales (74HC165 $\times 2$ con antirrebote RC), entrada analógica ADC, actuadores (motor de vibración, buzzer pasivo a $2{,}700\text{ Hz}$ y LEDs), comunicación bidireccional USB HID, emulación en Raspberry Pi 4 sobre pantalla TFT SPI de 3.5 pulgadas, telemetría de memoria multijuego en tiempo real con IPC por socket UNIX y arranque autónomo tolerante a fallas mediante \texttt{systemd}.
-	\item \textbf{Ajuste de interfaz de video:} Respecto a la salida externa HDMI a $60\text{ FPS}$ contemplada en el Avance 1, en el prototipo final se integró una pantalla TFT portátil de 3.5'' sobre el bus SPI0 ($50\text{ MHz}$), manteniendo la lógica de emulación interna a $60\text{ Hz}$ con una tasa real de refresco visual en panel de $20.35\text{ FPS}$ ($49.15\text{ ms}$ por cuadro).
+	\item \textbf{Ajuste de interfaz de video:} Respecto a la salida externa HDMI a $60\text{ FPS}$ contemplada en el Avance 1, en el prototipo final se integró una pantalla TFT portátil de 3.5'' sobre el bus SPI0 ($50\text{ MHz}$), manteniendo la lógica de emulación interna a $60\text{ Hz}$ con una tasa real de refresco visual en panel de $18.3\text{ FPS}$ ($20.35\text{ FPS}$ teóricos de bus).
 	\item \textbf{Fuera de alcance final:} Desarrollo de motores de juego o ROMs propias, multijugador remoto WAN por VPN (WireGuard) y multijugador local en red LAN (declarado explícitamente en la Sección~\ref{sec:requisitos} al priorizar la integración física del gabinete y la telemetría háptica).
 \end{itemize}
 
@@ -167,10 +167,10 @@ La Tabla~\ref{tab:requisitos} contrasta los requisitos funcionales (RF) y no fun
 El sistema combina dos paradigmas complementarios:
 \begin{enumerate}
 	\item \textbf{Nodo Esclavo (Raspberry Pi Pico — RP2040, \textit{Bare-Metal}):} Procesador dual-core ARM Cortex-M0+ a $133\text{ MHz}$ con $264\text{ KB}$ de SRAM y $2\text{ MB}$ de Flash. Sin sistema operativo ni cambios de contexto, las máquinas de estados PIO y los canales DMA ejecutan la adquisición de sensores de forma autónoma, permitiendo que Core 0 gestione el enlace USB HID cada $1\text{ ms}$ y supervise el \textit{watchdog} de hardware ($250\text{ ms}$).
-	\item \textbf{Nodo Maestro (Raspberry Pi 4 Model B Rev 1.5, Linux Embebido):} Quad-core ARM Cortex-A72 (hasta $1.8\text{ GHz}$) con $1\text{ GB}$ de RAM LPDDR4 ejecutando Raspberry Pi OS Lite de 64 bits (kernel 6.18) en modo consola sin servidor gráfico, utilizando DRM/KMS para video y \texttt{systemd} para la orquestación de procesos.
+	\item \textbf{Nodo Maestro (Raspberry Pi 4 Model B Rev 1.5, Linux Embebido):} Quad-core ARM Cortex-A72 (hasta $1.8\text{ GHz}$) con $1\text{ GB}$ de RAM LPDDR4 ejecutando Raspberry Pi OS Lite de 64 bits (Debian 13, kernel 6.18) en modo consola sin servidor gráfico, utilizando DRM/KMS para video y \texttt{systemd} para la orquestación de procesos.
 \end{enumerate}
 
-El costo total de materiales del prototipo armado asciende a \textbf{\$1,620 MXN} (Raspberry Pi 4 B, Raspberry Pi Pico, dos registros 74HC165, 10 botones arcade con red antirrebote RC de $330\,\Omega$ y $100\text{ nF}$, potenciómetro de $10\text{ k}\Omega$, motor de vibración, buzzer pasivo, LEDs y pantalla TFT SPI de 3.5'').
+El costo total de materiales del prototipo armado asciende a \textbf{\$1,620 MXN} (Raspberry Pi 4 B, Raspberry Pi Pico, dos registros 74HC165, 10 botones arcade con red antirrebote RC de $330\,\Omega$ y $100\text{ nF}$, potenciómetro de $10\text{ k}\Omega$, motor de vibración con etapa NPN y diodo de rueda libre, buzzer pasivo, LEDs con resistencias de $220\,\Omega$ y pantalla TFT SPI de 3.5'').
 
 % =====================================================================
 % IV. IMPLEMENTACIÓN, MÉTRICAS Y ROBUSTEZ
@@ -189,7 +189,7 @@ La Tabla~\ref{tab:metricas_finales} consolida las cuatro métricas de desempeño
 		\hline
 		\textbf{Métrica} & \textbf{Nodo Esclavo (Pico)} & \textbf{Nodo Maestro (Pi 4)} \\
 		\hline
-		Latencia / Periodo & Muestreo botones: \pend{5.00 ms}; reporte USB HID: $1.00\text{ ms}$ & Cuadro SPI TFT: $49.15\text{ ms}$ ($20.35\text{ FPS}$); entrada total: \pend{XX.X ms} \\
+		Latencia / Periodo & Muestreo botones: \pend{5.00 ms}; reporte USB HID: $1.00\text{ ms}$ & Cuadro SPI TFT: $49.15\text{ ms}$ ($18.3\text{ FPS}$ reales); entrada total: \pend{XX.X ms} \\
 		\hline
 		Uso de CPU & $< 2\%$ en Core 0 (PIO + DMA autónomos; \texttt{\_\_wfi()}) & RetroArch: \pend{XX\%}; Python IPC: \pend{X.X\%} (idle: \pend{XX\%}) \\
 		\hline
