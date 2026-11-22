@@ -25,11 +25,11 @@
 
 \textbf{Evidencia medida en el sistema final:}
 \begin{itemize}
-	\item \textbf{Consulta de RAM:} \texttt{pi/telemetria.py} envía \texttt{READ\_CORE\_RAM 67 1} por UDP para monitorear la dirección \texttt{0x067} (vidas de Pac-Man) a $60\text{ Hz}$.
-	\item \textbf{Envío de datagrama:} \texttt{pi/puente\_hid.py} recibe tramas atómicas (p. ej. \texttt{"VIB 300"}) y empaqueta un reporte HID OUT de 8 bytes en formato \textit{little-endian} (\texttt{struct.pack('<BH', ...)} / \texttt{'<BHH'}) precedido por el byte nulo de \textit{Report ID}.
+	\item \textbf{Identificación dinámica de ROM:} Para evitar falsos disparos al cambiar de juego, \texttt{pi/telemetria.py} supervisa la marca de tiempo (\texttt{st\_mtime}) del historial de RetroArch (\texttt{/home/konan/roms/historial.lpl}) y consulta por UDP (\texttt{READ\_CORE\_RAM}) a $60\text{ Hz}$ (temporizado con \texttt{time.monotonic()}) únicamente los títulos mapeados: \texttt{pacman.nes} (vidas en \texttt{0x067}), \texttt{pong.nes} (puntos en contra en \texttt{0x013}) y \texttt{tetris.nes} (fin de partida en \texttt{0x048 == 10}). Se evita explícitamente el comando \texttt{GET\_STATUS} por provocar fallo de segmentación en RetroArch 1.20.0.
+	\item \textbf{Envío de datagramas y temporización no bloqueante:} Ante un evento de juego, \texttt{telemetria.py} despacha datagramas independientes (\texttt{VIB 500}, \texttt{BUZ 2700 500}, \texttt{LED 1 1}, \texttt{LED 2 1}) hacia \texttt{pi/puente\_hid.py}, que los empaqueta en un reporte HID OUT de 8 bytes en formato \textit{little-endian} (\texttt{struct.pack('<BH', ...)} / \texttt{'<BHH'}). Mientras la Pico apaga motor y buzzer por hardware, \texttt{telemetria.py} programa el apagado de LEDs (\texttt{LED 1 0}, \texttt{LED 2 0}) $500\text{ ms}$ después sin detener el ciclo de $16.6\text{ ms}$.
 \end{itemize}
 
-\textbf{Diferencias con lo planeado:} En el Avance 1 se propuso conectar RetroArch directamente a un socket UNIX y usar un puerto serial CDC adicional hacia la Pico. Se migró a UDP porque es la interfaz nativa de comandos de red de RetroArch, y se sustituyó el puerto CDC por reportes HID OUT para reutilizar el mismo enlace USB de los controles.
+\textbf{Diferencias con lo planeado:} En el Avance 1 se propuso conectar RetroArch directamente a un socket UNIX y usar un puerto serial CDC adicional hacia la Pico. Se migró a UDP porque es la interfaz nativa de comandos de red de RetroArch, se incorporó la detección automática del juego activo mediante \texttt{historial.lpl} para soportar tres títulos distintos, y se sustituyó el puerto CDC por reportes HID OUT para reutilizar el enlace USB único de los controles.
 
 \textbf{Métricas:} Latencia de cambio de contexto IPC medida con \texttt{perf bench sched pipe}: $\pend{XX.X}\text{ }\mu\text{s}$; retardo desde evento UDP hasta señal PWM en el actuador: $\pend{XX.X}\text{ ms}$.
 
