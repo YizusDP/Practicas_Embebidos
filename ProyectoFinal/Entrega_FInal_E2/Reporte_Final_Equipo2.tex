@@ -81,7 +81,7 @@
 	\IEEEauthorblockN{Hernández Alonso Antonio Adonahí}
 	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
 		\textit{Facultad de Ingeniería, UNAM}\\
-		No. Cuenta: 316339825}
+		No. Cuenta: 320257780}
 	\and
 	\IEEEauthorblockN{Jiménez Reyes Alan Yael}
 	\IEEEauthorblockA{\textit{Ingeniería en Computación} \\
@@ -119,6 +119,7 @@ Los sistemas de emulación arcade de bajo costo suelen depender de periféricos 
 \subsection{Alcance Implementado y Delimitación}
 \begin{itemize}
 	\item \textbf{Implementado:} Control físico basado en RP2040 con 10 botones digitales (74HC165 $\times 2$ con antirrebote RC), entrada analógica ADC, actuadores (motor de vibración, buzzer pasivo y LEDs), comunicación bidireccional USB HID, emulación en Raspberry Pi 4 sobre pantalla TFT SPI de 3.5 pulgadas, telemetría de memoria en tiempo real con IPC por socket UNIX y arranque autónomo tolerante a fallas mediante \texttt{systemd}.
+	\item \textbf{Ajuste de interfaz de video:} Respecto a la salida externa HDMI a $60\text{ FPS}$ contemplada en el Avance 1, en el prototipo final se integró una pantalla TFT portátil de 3.5'' sobre el bus SPI0 ($50\text{ MHz}$), manteniendo la lógica de emulación interna a $60\text{ Hz}$ con una tasa real de refresco visual en panel de $20.35\text{ FPS}$ ($49.15\text{ ms}$ por cuadro).
 	\item \textbf{Fuera de alcance final:} Desarrollo de motores de juego o ROMs propias, multijugador remoto WAN por VPN (WireGuard) y multijugador local en red LAN (declarado explícitamente en la Sección~\ref{sec:requisitos} al priorizar la integración física del gabinete y la telemetría háptica).
 \end{itemize}
 
@@ -145,7 +146,7 @@ La Tabla~\ref{tab:requisitos} contrasta los requisitos funcionales (RF) y no fun
 		\hline
 		RF3 & Telemetría y retroalimentación bidireccional & Recepción de comando en esclavo $< 20\text{ ms}$ tras evento & Lectura UDP en \texttt{127.0.0.1:55355} + socket UNIX + HID OUT de 8 bytes en \pend{X.X ms} & \textbf{Cumplido} \\
 		\hline
-		RNF1 & Latencia de control (\textit{Input Lag}) & Extremo a extremo $\le 15\text{ ms}$ & Latencia física medida botón $\rightarrow$ reporte HID / respuesta: \pend{XX.X ms} & \pend{Cumplido} \\
+		RNF1 & Latencia de control (\textit{Input Lag}) & Extremo a extremo $\le 15\text{ ms}$ & Latencia física medida botón $\rightarrow$ recepción HID en emulador: \pend{XX.X ms} & \pend{Cumplido} \\
 		\hline
 		RNF2 & Respuesta háptica & Activación del motor $\le 50\text{ ms}$ tras señal & Activación PWM a $20\text{ kHz}$ mediante alarma no bloqueante en \pend{XX.X ms} & \pend{Cumplido} \\
 		\hline
@@ -177,7 +178,7 @@ El costo total de materiales del prototipo armado asciende a \textbf{\$1,620 MXN
 \section{Implementación, Métricas y Pruebas}
 
 \subsection{Resumen de Métricas Experimentales del Sistema}
-La Tabla~\ref{tab:metricas_finales} consolida las cuatro métricas de desempeño medidas directamente sobre el sistema físico operando en condiciones normales de juego (emulación de Pac-Man y Pong con telemetría activa).
+La Tabla~\ref{tab:metricas_finales} consolida las cuatro métricas de desempeño medidas directamente sobre el sistema físico operando en condiciones normales de juego (emulación de Pac-Man, Pong y Tetris con telemetría activa).
 
 \begin{table}[H]
 	\centering
@@ -195,6 +196,27 @@ La Tabla~\ref{tab:metricas_finales} consolida las cuatro métricas de desempeño
 		Uso de Memoria & Flash: $23{,}476\text{ B}$ ($1.1\%$); SRAM: $3{,}520\text{ B}$ ($1.3\%$) & Reposo: $135\text{ MB}$ / $1\text{ GB}$; en juego: \pend{XXX MB} (\texttt{free -h}) \\
 		\hline
 		Consumo Eléctrico & $\approx 25\text{ mA}$ a $5\text{ V}$ ($0.13\text{ W}$ vía puerto USB) & Reposo: \pend{X.XX W}; carga: \pend{X.XX W} (\texttt{throttled=0x0}) \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\subsection{Validación Funcional con Títulos de Prueba}
+Para verificar todos los subsistemas de entrada y retroalimentación de la consola, se ejecutaron pruebas integrales con tres títulos clásicos sobre RetroArch, ejercitando distintas combinaciones de periféricos sin necesidad de incluir binarios propietarios en el repositorio (Tabla~\ref{tab:juegos_prueba}).
+
+\begin{table}[H]
+	\centering
+	\caption{Cobertura de subsistemas por título emulado}
+	\label{tab:juegos_prueba}
+	\footnotesize
+	\begin{tabular}{|p{1.5cm}|p{2.6cm}|p{3.1cm}|}
+		\hline
+		\textbf{Título} & \textbf{Entradas Utilizadas} & \textbf{Validación del Sistema} \\
+		\hline
+		\textit{Pac-Man} & 4 botones direccionales + Start (74HC165) & Telemetría RAM (\texttt{0x067}) y disparo háptico/sonoro al perder vida \\
+		\hline
+		\textit{Pong} & Potenciómetro analógico (ADC 12 bits) & Control proporcional continuo sin fluctuaciones ni ruido en eje \\
+		\hline
+		\textit{Tetris} & Botones direccionales y de acción rápida & Antirrebote RC y muestreo PIO a $200\text{ Hz}$ sin pulsaciones dobles \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -244,7 +266,7 @@ La Tabla~\ref{tab:bitacora_completa} sintetiza la evolución de todas las decisi
 	\end{tabular}
 \end{table*}
 
-% --- Entradas detalladas de Alan: Clase 11, Clase 20 (IPC), Clase 22 y Clase 23 ---
+% --- Entradas detalladas de Alan: Clases 7, 11, 12, 20, 22 y 23 ---
 \input{secciones/alan}
 
 % =====================================================================
