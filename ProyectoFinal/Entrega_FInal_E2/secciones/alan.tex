@@ -46,7 +46,7 @@
 
 \textbf{Diferencias con lo planeado:} Se ajustó el divisor fraccionario de reloj de la máquina PIO a \texttt{182.91f} para alinear exactamente el periodo de muestreo al criterio de $5.0\text{ ms}$ ($200\text{ Hz}$).
 
-\textbf{Métricas:} Periodo de muestreo PIO medido en \texttt{GPIO17}: $\pend{5.00}\text{ ms}$ ($200\text{ Hz}$); latencia total extremo a extremo desde pulsación física de botón hasta cambio de píxel en pantalla TFT: $\pend{XX.X}\text{ ms}$.
+\textbf{Métricas:} Periodo de muestreo PIO medido en \texttt{GPIO17}: $\pend{5.00}\text{ ms}$ ($200\text{ Hz}$); latencia total extremo a extremo desde pulsación física de botón hasta llegada del evento HID en el nodo maestro: $\pend{XX.X}\text{ ms}$.
 
 \subsection{Bitácora: Clase 20 — Programación Segura de Bajo Nivel y Serialización}
 \textbf{Autor:} Jiménez Reyes Alan Yael
@@ -56,7 +56,7 @@
 \textbf{Evidencia medida en el sistema final:}
 \begin{itemize}
 	\item \textbf{Descriptor binario compartido:} \texttt{firmware/controls\_report.h} define el reporte HID de entrada de 10 bytes y el de salida de 8 bytes con alineación explícita y ordenamiento \textit{little-endian}.
-	\item \textbf{Variables volátiles:} Bandera de temporización de actuadores (\texttt{volatile bool actuation\_active}) modificada desde \textit{callbacks} de alarma en \texttt{firmware/actuadores.c}.
+	\item \textbf{Variables volátiles:} Banderas y temporizadores de actuadores (\texttt{s\_alarma\_motor}, \texttt{s\_alarma\_buzzer} en \texttt{firmware/actuadores.c}) y estructura global \texttt{g\_controls} (\texttt{firmware/main.c}) protegidos contra optimizaciones de caché en registros del compilador.
 \end{itemize}
 
 \textbf{Diferencias con lo planeado:} Ninguna. La serialización explícita evitó problemas de relleno (\textit{padding}) del compilador entre plataformas de 32 y 64 bits.
@@ -97,11 +97,11 @@
 
 \textbf{Evidencia medida en el sistema final:}
 \begin{itemize}
-	\item \textbf{Ciclo y plazos:} El lazo de \texttt{firmware/main.c} opera cada \textbf{1 ms} ($1000\text{ Hz}$, sincronizado con \texttt{bInterval = 1 ms}) para cumplir el plazo de entrada $\le 15\text{ ms}$ (RNF1). En la Pi 4, RetroArch corre a $16.67\text{ ms}$ internos ($60\text{ Hz}$, limitado por SPI a $49.15\text{ ms}$) y \texttt{telemetria.py} sondea cada $16.6\text{ ms}$ mediante reloj monotónico para cumplir RNF2 ($\le 50\text{ ms}$).
-	\item \textbf{Recuperación ante falla de sensor:} En \texttt{main.c}, Core 0 solo alimenta al \textit{watchdog} de hardware ($250\text{ ms}$) si los canales DMA de botones y ADC (\texttt{read\_adc\_is\_alive()}) siguen avanzando; si un sensor o periférico se congela, el RP2040 se reinicia automáticamente en $250\text{ ms}$. En la Pi 4, \texttt{puente\_hid.py} reintenta abrir \texttt{/dev/arcade\_hid} cada $1\text{ s}$ ante desconexión USB y \texttt{systemd} (\texttt{Restart=always}) relanza cualquier servicio caído.
+	\item \textbf{Ciclo y plazos:} El lazo de \texttt{firmware/main.c} opera cada \textbf{1 ms} ($1000\text{ Hz}$, sincronizado con \texttt{bInterval = 1 ms}) para cumplir el plazo de entrada $\le 15\text{ ms}$ (RNF1). En la Pi 4, RetroArch corre a $16.67\text{ ms}$ internos ($60\text{ Hz}$, limitado por SPI a $49.15\text{ ms}$, $18.3\text{ FPS}$ medidos) y \texttt{telemetria.py} sondea cada $16.6\text{ ms}$ mediante reloj monotónico para cumplir RNF2 ($\le 50\text{ ms}$).
+	\item \textbf{Recuperación ante falla de sensor:} En \texttt{main.c}, Core 0 supervisa cada $25\text{ ms}$ que los canales DMA de botones y ADC (\texttt{read\_adc\_is\_alive()}) sigan avanzando; si detecta $4$ revisiones consecutivas sin progreso, deja de alimentar el \textit{watchdog} de hardware y el RP2040 se reinicia automáticamente a los $250\text{ ms}$, reportando el motivo por \texttt{UART0} (\texttt{GP0}/\texttt{GP1}). En la Pi 4, \texttt{puente\_hid.py} reintenta abrir \texttt{/dev/arcade\_hid} cada $1\text{ s}$ ante desconexión USB y \texttt{systemd} (\texttt{Restart=always}) relanza cualquier servicio caído.
 \end{itemize}
 
-\textbf{Diferencias con lo planeado:} Se añadió la verificación explícita de progreso de ambos canales DMA antes de refrescar el \textit{watchdog} para detectar bloqueos silenciosos de periféricos sin que la CPU principal esté colgada.
+\textbf{Diferencias con lo planeado:} Se añadió la verificación explícita de progreso de ambos canales DMA cada $25\text{ ms}$ antes de refrescar el \textit{watchdog} para detectar bloqueos silenciosos de periféricos sin que la CPU principal esté colgada.
 
 \textbf{Métricas:} Reinicio automático del nodo esclavo en $250\text{ ms}$ ante bloqueo de DMA; recuperación de sesión completa en el nodo maestro en $3.414\text{ s}$ vía \texttt{systemd}.
 
