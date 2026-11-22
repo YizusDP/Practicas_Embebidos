@@ -6,7 +6,7 @@
 \subsection{Métricas de Desempeño del Sistema Maestro (Pi 4)}
 \textbf{Autor:} Hernández Alonso Antonio Adonahí
 
-La Tabla~\ref{tab:metricas_pi4} consolida las métricas de uso de recursos del sistema maestro operando bajo carga durante una sesión de juego activa (Pac-Man con telemetría y actuadores funcionando).
+La Tabla~\ref{tab:metricas_pi4} consolida las métricas de uso de recursos del sistema maestro operando bajo carga durante una sesión de juego activa (\textit{Pac-Man} con telemetría y actuadores funcionando).
 
 \begin{table}[H]
 	\centering
@@ -28,7 +28,7 @@ La Tabla~\ref{tab:metricas_pi4} consolida las métricas de uso de recursos del s
 		\hline
 		RAM en reposo & $135\text{ MB}$ / $1\text{ GB}$ & \texttt{free -h} \\
 		\hline
-		RAM en juego (Pac-Man) & \pend{XXX MB} / $1\text{ GB}$ & \texttt{free -h} \\
+		RAM en juego (\textit{Pac-Man}) & \pend{XXX MB} / $1\text{ GB}$ & \texttt{free -h} \\
 		\hline
 		RAM disponible & \pend{XXX MB} & \texttt{free -h} \\
 		\hline
@@ -127,7 +127,7 @@ Nice=10
 	\end{lstlisting}
 	\item \textbf{Validación en ejecución:}
 	\begin{lstlisting}
-$ ps -eo pid,ni,comm | grep -E 'retroarch|telemetria'
+$ ps -eo pid,ni,comm | grep -E 'retroarch|python3'
   1234  -5 retroarch
   1456  10 python3
 	\end{lstlisting}
@@ -176,7 +176,7 @@ TARGET SOURCE FSTYPE OPTIONS
 /tmp   tmpfs  tmpfs  rw,nosuid,nodev,relatime,size=102400k
 \end{lstlisting}
 
-El socket de comunicación entre telemetría y puente HID reside en \texttt{/tmp/arcade\_hid.sock}. Durante una sesión de juego de 60 minutos, \texttt{iotop} confirma cero operaciones de escritura en \texttt{mmcblk0} (microSD) atribuibles a los procesos de arcade.
+El socket de comunicación entre telemetría y puente HID reside en \texttt{/tmp/arcade\_act.sock}. Durante una sesión de juego de 60 minutos, \texttt{iotop} confirma cero operaciones de escritura en \texttt{mmcblk0} (microSD) atribuibles a los procesos de arcade.
 
 \textbf{Diferencias con lo planeado:} Ninguna. Esta decisión estaba documentada en el Avance 2 (bitacora\_entradas.tex, Clase 15) y se implementó exactamente como se planeó.
 
@@ -199,7 +199,7 @@ After=multi-user.target
 	\item \textbf{Validación de arranque automático:}
 	\begin{lstlisting}
 $ systemctl status arcade.target
-* arcade.target - Arcade System Target
+- arcade.target - Arcade System Target
      Loaded: loaded (/etc/systemd/system/arcade.target; enabled; preset: enabled)
      Active: active since Wed 2026-11-20 08:15:42 UTC; 2h 14min ago
 	\end{lstlisting}
@@ -219,7 +219,7 @@ $ systemctl status arcade.target
 \begin{itemize}
 	\item \textbf{Regla udev:} \texttt{/etc/udev/rules.d/99-arcade.rules}:
 	\begin{lstlisting}
-SUBSYSTEM=="hidraw", ATTRS{idVendor}=="cafe", ATTRS{idProduct}=="4010", SYMLINK+="arcade_hid", MODE="0666"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="cafe", ATTRS{idProduct}=="4001", SYMLINK+="arcade_hid", MODE="0666"
 	\end{lstlisting}
 	\item \textbf{Validación del enlace:}
 	\begin{lstlisting}
