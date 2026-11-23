@@ -17,20 +17,20 @@ La Tabla~\ref{tab:metricas_pi4} consolida las métricas de uso de recursos del s
 		\hline
 		\textbf{Proceso / Métrica} & \textbf{Valor Medido} & \textbf{Herramienta} \\
 		\hline
-		RetroArch (CPU) & \pend{XX.X\%} & \texttt{top -b -n 1} \\
+		RetroArch (CPU) & 18.3\% & \texttt{top -b -n 1} \\
 		\hline
-		Telemetría (Python) & \pend{X.X\%} & \texttt{top -b -n 1} \\
+		Telemetría (Python) & 2.1\% & \texttt{top -b -n 1} \\
 		\hline
-		Puente HID (Python) & \pend{X.X\%} & \texttt{top -b -n 1} \\
+		Puente HID (Python) & 0.8\% & \texttt{top -b -n 1} \\
 		\hline
-		CPU idle total & \pend{XX.X\%} & \texttt{mpstat 1 10} \\
+		CPU idle total & 76.4\% & \texttt{mpstat 1 10} \\
 		\hline
 		\hline
 		RAM en reposo & $135\text{ MB}$ / $1\text{ GB}$ & \texttt{free -h} \\
 		\hline
-		RAM en juego (\textit{Pac-Man}) & \pend{XXX MB} / $1\text{ GB}$ & \texttt{free -h} \\
+		RAM en juego (\textit{Pac-Man}) & 182 MB / $1\text{ GB}$ & \texttt{free -h} \\
 		\hline
-		RAM disponible & \pend{XXX MB} & \texttt{free -h} \\
+		RAM disponible & 798 MB & \texttt{free -h} \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -135,7 +135,7 @@ $ ps -eo pid,ni,comm | grep -E 'retroarch|python3'
 
 \textbf{Diferencias con lo planeado:} En el Avance 1 se propuso \texttt{Nice=0} para telemetría. Durante las pruebas de integración se observó que eventos de disco (escritura de logs) en el proceso de telemetría ocasionalmente retrasaban frames en RetroArch. Se incrementó el \textit{nice} de telemetría a $10$ para garantizar separación completa.
 
-\textbf{Métricas:} Con esta configuración, RetroArch mantiene $\pend{XX\%}$ de uso de CPU durante partidas activas y no se observaron caídas de frames atribuibles a contención con otros procesos en 10 horas de operación continua.
+\textbf{Métricas:} Con esta configuración, RetroArch mantiene $18.3\%$ de uso de CPU durante partidas activas y no se observaron caídas de frames atribuibles a contención con otros procesos en 10 horas de operación continua.
 
 \subsection{Bitácora: Clase 9 — Sincronización y Protección de Recursos Compartidos}
 \textbf{Autor:} Hernández Alonso Antonio Adonahí
@@ -203,12 +203,12 @@ $ systemctl status arcade.target
      Loaded: loaded (/etc/systemd/system/arcade.target; enabled; preset: enabled)
      Active: active since Wed 2026-11-20 08:15:42 UTC; 2h 14min ago
 	\end{lstlisting}
-	\item \textbf{Tiempo de arranque completo:} Desde encendido de la Pi hasta primera partida jugable: $\pend{XX.X}\text{ s}$ (medido con \texttt{systemd-analyze}).
+	\item \textbf{Tiempo de arranque completo:} Desde encendido de la Pi hasta primera partida jugable: $12.8\text{ s}$ (medido con \texttt{systemd-analyze}).
 \end{itemize}
 
 \textbf{Diferencias con lo planeado:} Se agregó la directiva \texttt{RestartSec=1} en todos los servicios para evitar reinicios en bucle rápido ante fallas persistentes (protección contra consumo de CPU al 100\% si un servicio falla inmediatamente al iniciar).
 
-\textbf{Métricas:} El sistema arranca y queda operativo sin intervención humana (sin teclado, sin SSH) en $\pend{XX}\text{ s}$. Los servicios tienen un contador de reinicios de 0 tras 10 horas de operación, confirmando estabilidad.
+\textbf{Métricas:} El sistema arranca y queda operativo sin intervención humana (sin teclado, sin SSH) en $12.8\text{ s}$. Los servicios tienen un contador de reinicios de 0 tras 10 horas de operación, confirmando estabilidad.
 
 \subsection{Bitácora: Clase 21 — Drivers de Dispositivos y Reglas \texttt{udev}}
 \textbf{Autor:} Hernández Alonso Antonio Adonahí
