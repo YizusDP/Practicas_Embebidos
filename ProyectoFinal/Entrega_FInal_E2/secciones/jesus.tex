@@ -1,23 +1,219 @@
 % =====================================================================
 % Sección de Domínguez Palacios Jesús Alejandro
-% Diagrama de bloques final, descripción de bloques y pantalla TFT
+% Diagrama de bloques final, descripción de bloques, pantalla TFT,
+% desempeño de la Raspberry Pi y análisis temporal calculado
 % =====================================================================
 
-\subsection{Diagrama de Bloques del Sistema Final}
+\subsection{Diagrama de Bloques y Flujo de Datos del Sistema Final}
+\textbf{Autor:} Domínguez Palacios Jesús Alejandro
+
+La Figura~\ref{fig:diagrama_final} ilustra la arquitectura completa construida e integrada entre el nodo esclavo (mando embebido) y el nodo maestro (consola arcade).
 
 \begin{figure*}[!t]
 	\centering
-	% Reemplazar con la ruta correcta al diagrama final
-	% \includegraphics[width=\textwidth]{img/diagrama_bloques_final.png}
-	\imgph{Diagrama de bloques del sistema completo}{8cm}
-	\caption{Arquitectura completa del sistema: nodo esclavo (Pico) y nodo maestro (Pi 4).}
+	% Descomentar cuando se genere el diagrama final consistente:
+	% \includegraphics[width=\textwidth]{diagrama_bloques_final.png}
+	\imgph{Diagrama de bloques completo del sistema final (Pico + Pi 4 + TFT SPI)}{7.5cm}
+	\caption{Arquitectura completa del sistema: adquisición determinista en RP2040, enlace USB HID bidireccional y despliegue en Raspberry Pi 4.}
 	\label{fig:diagrama_final}
 \end{figure*}
 
-\textbf{Descripción pendiente:} Explicar cada bloque del diagrama, flujo de datos entre componentes, y cómo se conectan los dos nodos.
+El flujo operativo de extremo a extremo se organiza en cuatro etapas:
+\begin{enumerate}
+	\item \textbf{Adquisición determinista en el mando (RP2040):} Diez botones físicos en configuración \textit{pull-down} (\texttt{CONTROLS\_BUTTONS\_ACTIVE\_LOW = 0}) con filtrado RC ($330\,\Omega$ y $100\text{ nF}$) son serializados por dos registros 74HC165 en cascada (\texttt{GP16}--\texttt{GP18}). La máquina \texttt{PIO0 SM0}, con divisor de reloj $125$ (reloj de $1\text{ MHz}$), captura tramas de 10 bits cada $3.417\text{ ms}$ y dos canales DMA encadenados las depositan en \texttt{g\_controls.buttons}. En paralelo, el ADC de 12 bits en modo \textit{round-robin} (\texttt{GP26}--\texttt{GP28}, $4\text{ kHz}$ por canal) actualiza \texttt{g\_controls.axis} mediante un anillo DMA de 8 bytes, sin intervención de la CPU. Por el montaje físico del joystick, el firmware intercambia los ejes X e Y e invierte el eje X (\texttt{JOY\_SWAP\_XY}, \texttt{JOY\_INVERT\_X}); el eje Z se mantiene fijo en el centro ($2048$) al no haber potenciómetro conectado (\texttt{Z\_AXIS\_ENABLED = 0}).
+	\item \textbf{Enlace USB HID bidireccional:} Core 0 despierta cada $1\text{ ms}$ para transmitir la estructura \texttt{controls\_report\_t} ($10\text{ bytes}$, VID/PID \texttt{cafe:4001}) vía TinyUSB y supervisar cada $25\text{ ms}$ el avance de ambos trenes DMA para alimentar el \textit{watchdog} de hardware ($250\text{ ms}$). En Linux, \texttt{usbhid} expone las entradas en \texttt{/dev/input/eventX} para RetroArch, mientras que una regla \texttt{udev} crea \texttt{/dev/arcade\_hid} (\texttt{hidraw}) para enviar reportes de salida de $8\text{ bytes}$ que la Pico atiende en \texttt{tud\_hid\_set\_report\_cb()}.
+	\item \textbf{Emulación y despliegue gráfico:} RetroArch (\texttt{Nice=-5}) ejecuta los núcleos de emulación (Nestopia para los títulos de NES) sobre Raspberry Pi OS Lite (Debian 13, kernel 6.18) sin servidor X11/Wayland, renderizando directamente sobre el subsistema DRM/KMS hacia la pantalla TFT SPI. Un servicio auxiliar aplica cámara lenta automática (\texttt{slowmotion\_ratio = 1.5}, aproximadamente $40\text{ FPS}$ de emulación) y el audio se dirige a un controlador nulo (\texttt{SDL\_AUDIODRIVER=dummy}) porque el sistema no incorpora salida de sonido.
+	\item \textbf{Telemetría y retroalimentación:} \texttt{telemetria.py} (\texttt{Nice=10}) identifica la ROM activa leyendo la primera entrada del historial de RetroArch (\texttt{/opt/arcade/content\_history.lpl}) y consulta su RAM mediante el comando \texttt{READ\_CORE\_RAM} por UDP (\texttt{127.0.0.1:55355}). Según el juego se vigila una dirección distinta, como se resume en la Tabla~\ref{tab:telemetria_juegos}. Al detectar un evento, envía las órdenes por el socket UNIX \texttt{/tmp/arcade\_act.sock} a \texttt{puente\_hid.py}, que las entrega por \texttt{hidraw} y activa en la Pico el motor de vibración (\texttt{GP15}), el buzzer (\texttt{GP12}, $2700\text{ Hz}$ durante $500\text{ ms}$) y los LEDs (\texttt{GP10}--\texttt{GP11}).
+\end{enumerate}
 
-\subsection{Configuración de la Pantalla TFT}
+\begin{table}[H]
+	\centering
+	\caption{Eventos de telemetría por juego (RAM de la NES)}
+	\label{tab:telemetria_juegos}
+	\footnotesize
+	\begin{tabular}{|l|c|p{5.6cm}|}
+		\hline
+		\textbf{Juego} & \textbf{Dirección} & \textbf{Evento que dispara los actuadores} \\
+		\hline
+		Pac-Man & \texttt{0x067} & Disminución del contador de vidas (inicia en 3) \\
+		\hline
+		Pong & \texttt{0x013} & Aumento del marcador del oponente (0 a 4) \\
+		\hline
+		Tetris & \texttt{0x048} & Estado de juego igual a 10 (fin de la partida) \\
+		\hline
+	\end{tabular}
+\end{table}
 
-\textbf{Pantalla utilizada:} TFT SPI de 3.5 pulgadas.
+\subsection{Configuración y Desempeño de la Pantalla TFT SPI}
+\textbf{Autor:} Domínguez Palacios Jesús Alejandro
 
-\textbf{Configuración pendiente:} Detalles de la configuración en \texttt{config.txt}, driver \texttt{panel-mipi-dbi}, resolución y FPS alcanzados.
+Para integrar el despliegue visual dentro del gabinete impreso en 3D sin depender de un monitor HDMI externo, se incorporó un panel TFT de $3.5''$ con controlador \textbf{ST7796S} ($480 \times 320$ píxeles en orientación horizontal) conectado al bus \textbf{SPI0} de la Raspberry Pi 4 según el mapeo físico de la Tabla~\ref{tab:pines_tft}.
+
+\begin{table}[H]
+	\centering
+	\caption{Conexión física entre el panel TFT ST7796S y la Raspberry Pi 4}
+	\label{tab:pines_tft}
+	\footnotesize
+	\begin{tabular}{|c|c|l|}
+		\hline
+		\textbf{Pin TFT} & \textbf{Pin físico Pi 4} & \textbf{Función} \\
+		\hline
+		VCC / BL & Pin 2 / Pin 4 & Alimentación ($5\text{ V}$) y retroiluminación \\
+		\hline
+		GND & Pin 6 & Referencia común de tierra \\
+		\hline
+		SCL / SDA & Pin 23 / Pin 19 & Reloj (SCLK) y datos MOSI del bus SPI0 \\
+		\hline
+		RST / DC / CS & Pin 18 / Pin 22 / Pin 24 & Reinicio, selección Dato/Comando y Chip Select \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\textbf{Configuración de kernel y desempeño medido:}
+\begin{itemize}
+	\item \textbf{Device Tree y firmware de panel:} En \texttt{/boot/firmware/config.txt} (\texttt{pantalla/config\_txt\_pantalla.txt}) se habilita el bus SPI a $50\text{ MHz}$ (\texttt{core\_freq\_min=500}) y el \textit{overlay} \texttt{mipi-dbi-spi} apuntando a \texttt{/lib/firmware/st7796s.bin} ($107\text{ bytes}$ generados por \texttt{pantalla/gen\_st7796.py}), el cual fija \texttt{MADCTL = 0x28} para orientación horizontal y expone el panel como dispositivo DRM \texttt{/dev/dri/cardX}.
+	\item \textbf{Conversión de color y tasa de cuadros:} RetroArch renderiza en un \textit{framebuffer} \texttt{XRGB8888} ($480 \times 320 \times 4 = 614{,}400\text{ B}$, \texttt{stride: 1920} en \texttt{pantalla/ra\_gl.cfg}) con triple \textit{buffering} (\texttt{video\_max\_swapchain\_images = "3"}). El controlador \texttt{panel-mipi-dbi} convierte cada cuadro a \texttt{RGB565} ($307{,}200\text{ B}$) antes de transmitirlo por SPI a $50\text{ MHz}$, estableciendo un límite físico de bus de:
+	\[
+	T_{\text{cuadro}} = \frac{307{,}200 \times 8\text{ bits}}{50 \times 10^6\text{ bit/s}} = 49.15\text{ ms} \implies f_{\text{máx}} = 20.35\text{ FPS}
+	\]
+	En las pruebas experimentales se alcanzó una tasa estable de \textbf{$18.3\text{ FPS}$} ($89.9\%$ del límite teórico del bus SPI) en la pantalla física, suficiente para una respuesta visual fluida en títulos arcade clásicos.
+\end{itemize}
+
+\subsection{Desempeño de la Raspberry Pi 4 en Reposo y Bajo Carga}
+\textbf{Autor:} Domínguez Palacios Jesús Alejandro
+
+Las mediciones de la Tabla~\ref{tab:desempeno_pi} se tomaron directamente en la Raspberry Pi 4 (4 núcleos, $905\text{ MiB}$ de RAM) con \texttt{systemd-analyze}, \texttt{free}, \texttt{mpstat}, \texttt{pidstat}, \texttt{vcgencmd} y \texttt{perf}. El estado en reposo corresponde a los servicios activos con RetroArch en el menú y sin juego cargado; el estado bajo carga, a Pac-Man en ejecución durante $15\text{ s}$ con una pérdida de vida que disparó los actuadores.
+
+\begin{table}[H]
+	\centering
+	\caption{Desempeño medido de la Raspberry Pi 4}
+	\label{tab:desempeno_pi}
+	\footnotesize
+	\begin{tabular}{|l|c|c|}
+		\hline
+		\textbf{Métrica} & \textbf{Reposo} & \textbf{Bajo carga (Pac-Man)} \\
+		\hline
+		Arranque (kernel + espacio de usuario) & \multicolumn{2}{c|}{$2.751 + 16.124 = 18.876\text{ s}$} \\
+		\hline
+		CPU total utilizada (4 núcleos) & $5.2$--$7.5\,\%$ & $7.60\,\%$ \\
+		\hline
+		CPU de RetroArch (un núcleo) & --- & $20.0\,\%$ \\
+		\hline
+		CPU de \texttt{telemetria.py} (un núcleo) & $<0.1\,\%$ & $1.0\,\%$ \\
+		\hline
+		RAM utilizada ($905\text{ MiB}$ totales) & $220\text{ MiB}$ ($24.3\,\%$) & $283\text{ MiB}$ ($31.3\,\%$) \\
+		\hline
+		Memoria de intercambio utilizada & $0\text{ B}$ & $0\text{ B}$ \\
+		\hline
+		\texttt{vcgencmd get\_throttled} & \texttt{0x0} & \texttt{0x0} \\
+		\hline
+		\texttt{perf bench sched pipe} & $4.35$--$4.84\,\mu\text{s/op}$ & $4.62\,\mu\text{s/op}$ ($216{,}412$ ops/s) \\
+		\hline
+	\end{tabular}
+\end{table}
+
+El sistema opera con más de $90\,\%$ de CPU libre y sin uso de intercambio, y el valor \texttt{0x0} de \texttt{get\_throttled} indica que no hubo subvoltaje ni limitación térmica durante las pruebas.
+
+\paragraph{Consumo eléctrico (estimado).}
+El consumo eléctrico se obtuvo mediante estimación. Para la Raspberry Pi 4 se partió de valores publicados de $2.7\,\mathrm{W}$ en reposo y $6.4\,\mathrm{W}$ con los cuatro núcleos al $100\,\%$ (\texttt{pidramble.com/node/27}) y se interpoló linealmente según la CPU utilizada $u$:
+\begin{equation}
+P_{Pi} = 2.7 + (6.4 - 2.7)\,u
+\end{equation}
+Con $u = 5.2\,\%$ en reposo y $u = 7.6\,\%$ bajo carga se obtienen $2.9\,\mathrm{W}$ y $3.0\,\mathrm{W}$, respectivamente. Para los periféricos se supusieron corrientes típicas a $5\,\mathrm{V}$ (Tabla~\ref{tab:energia}).
+
+\begin{table}[H]
+	\centering
+	\caption{Estimación de consumo eléctrico del sistema}
+	\label{tab:energia}
+	\footnotesize
+	\begin{tabular}{|l|c|c|}
+		\hline
+		\textbf{Componente} & \textbf{Reposo} & \textbf{Bajo carga} \\
+		\hline
+		Raspberry Pi 4 (modelo lineal) & $2.9\text{ W}$ & $3.0\text{ W}$ \\
+		\hline
+		Pico (RP2040 y enlace HID, $20\text{ mA}$) & $0.10\text{ W}$ & $0.10\text{ W}$ \\
+		\hline
+		Pantalla TFT con retroiluminación ($100\text{ mA}$) & $0.50\text{ W}$ & $0.50\text{ W}$ \\
+		\hline
+		\textbf{Total estimado} & \textbf{$3.5\text{ W}$} & \textbf{$3.6\text{ W}$} \\
+		\hline
+	\end{tabular}
+\end{table}
+
+Durante un evento de telemetría, el motor ($100\,\mathrm{mA}$), el buzzer ($30\,\mathrm{mA}$) y los dos LEDs ($2\times 10\,\mathrm{mA}$) suman $0.75\,\mathrm{W}$ durante $500\,\mathrm{ms}$, con un pico estimado de $3.6 + 0.75 = 4.35\,\mathrm{W}$ ($0.87\,\mathrm{A}$), equivalente al $29\,\%$ de los $15\,\mathrm{W}$ de la fuente mínima recomendada de $5\,\mathrm{V}/3\,\mathrm{A}$. La energía por evento es $0.75\,\mathrm{W}\times 0.5\,\mathrm{s} = 0.375\,\mathrm{J}$ y el consumo continuo de una hora de juego, $3.6\,\mathrm{Wh}$.
+
+\subsection{Análisis Temporal Calculado (sin instrumentación externa)}
+\textbf{Autor:} Domínguez Palacios Jesús Alejandro
+
+Los valores de esta sección se obtuvieron de forma analítica a partir del código fuente del firmware y de los parámetros de hardware, y se identifican como \textit{calculados}. La excepción es el tiempo de entrega al Pico, que proviene de los registros del servicio puente.
+
+\paragraph{Periodo de escaneo de botones (RF1).}
+Cada trama del PIO consta de una cabecera de 130 ciclos, nueve iteraciones de 130 ciclos y una pausa de $2\,116$ ciclos:
+\begin{equation}
+N = 130 + 9\times 130 + 1 + 2\times(1 + 32\times 33 + 1) = 3417 \text{ ciclos}
+\end{equation}
+Con \texttt{BTN\_SM\_CLKDIV} $=125$, el reloj de la máquina de estados es $125\,\mathrm{MHz}/125 = 1\,\mathrm{MHz}$, es decir, un ciclo dura $1\,\mu\mathrm{s}$:
+\begin{equation}
+T_{escaneo} = 3417\,\mu\mathrm{s} = 3.417\,\mathrm{ms}, \qquad f_{escaneo} = 292.6\,\mathrm{Hz}
+\end{equation}
+El periodo de CLK en GP18 es de $130\,\mu\mathrm{s}$. Como el PIO opera sin intervención de la CPU, el jitter está limitado solo por la tolerancia del cristal (típicamente $\pm 30$\,ppm, es decir, $\pm 0.10\,\mu\mathrm{s}$ sobre el periodo), por lo que se espera una desviación estándar despreciable.
+
+\paragraph{Muestreo analógico.}
+El divisor del ADC es $48\,\mathrm{MHz}/(4000\times 4) - 1 = 2999$, lo que da una conversión cada $62.5\,\mu\mathrm{s}$ y $250\,\mu\mathrm{s}$ por canal ($4\,\mathrm{kHz}$).
+
+\paragraph{Actuadores.}
+El motor opera con PWM de $125\,\mathrm{MHz}/(6.25\times 1000) = 20\,\mathrm{kHz}$ y ciclo útil de $799/1000 = 79.9\,\%$. Para el buzzer, una orden de $2700\,\mathrm{Hz}$ resulta en \texttt{wrap} $=722$ y una frecuencia real de $125\,\mathrm{MHz}/(64\times 723) = 2701.4\,\mathrm{Hz}$ (error de $0.05\,\%$).
+
+\paragraph{Latencia de entrada (RNF1).}
+Se define como el tiempo entre la pulsación de un botón y la disponibilidad del evento en la Raspberry Pi.
+
+\begin{table}[H]
+	\centering
+	\caption{Latencia de entrada calculada. Límite del requisito: $15\text{ ms}$}
+	\label{tab:lat_entrada}
+	\footnotesize
+	\begin{tabular}{|l|c|c|}
+		\hline
+		\textbf{Tramo} & \textbf{Mejor caso} & \textbf{Peor caso} \\
+		\hline
+		Espera de la siguiente carga paralela & $0\text{ ms}$ & $3.417\text{ ms}$ \\
+		\hline
+		Carga y desplazamiento a RAM ($1299 - 64\,\mu\text{s}$) & $1.235\text{ ms}$ & $1.235\text{ ms}$ \\
+		\hline
+		USB (foto del estado y sondeo de $1\text{ ms}$) & $1\text{ ms}$ & $2\text{ ms}$ \\
+		\hline
+		Kernel de Linux (estimado) & $0\text{ ms}$ & $1\text{ ms}$ \\
+		\hline
+		\textbf{Total} & \textbf{$2.2\text{ ms}$} & \textbf{$7.65\text{ ms}$} \\
+		\hline
+	\end{tabular}
+\end{table}
+
+\paragraph{Latencia de actuadores (RNF2/RF3).}
+Desde el cambio en la RAM del juego hasta el disparo del actuador:
+
+\begin{table}[H]
+	\centering
+	\caption{Latencia de actuadores calculada. Límite: $50\text{ ms}$ totales y $20\text{ ms}$ de enlace}
+	\label{tab:lat_actuadores}
+	\footnotesize
+	\begin{tabular}{|l|c|c|}
+		\hline
+		\textbf{Tramo} & \textbf{Mejor caso} & \textbf{Peor caso} \\
+		\hline
+		Sondeo de \texttt{telemetria.py} ($60\text{ Hz}$) & $0\text{ ms}$ & $16.67\text{ ms}$ \\
+		\hline
+		RetroArch atiende el comando (cuadro a $40\text{ FPS}$) & $0\text{ ms}$ & $25\text{ ms}$ \\
+		\hline
+		Enlace Pi $\rightarrow$ Pico (puente, USB, PWM) & $0.6\text{ ms}$ & $4.1\text{ ms}$ \\
+		\hline
+		\textbf{Total} & \textbf{$0.6\text{ ms}$} & \textbf{$45.8\text{ ms}$} \\
+		\hline
+	\end{tabular}
+\end{table}
+
+El tiempo de enlace de la tabla anterior se obtuvo de los registros del servicio puente, que mide el tiempo de entrega de cada orden al Pico. En una muestra de 20 órdenes se obtuvo un mínimo de $0.6\,\mathrm{ms}$, un máximo de $3.9\,\mathrm{ms}$ y un promedio de $2.24\,\mathrm{ms}$ (máximo observado en registros previos: $4.1\,\mathrm{ms}$), lo que cumple el límite de $20\,\mathrm{ms}$ para el enlace. Con el promedio medido, la latencia típica total es de $16.67/2 + 25/2 + 2.24 = 23.1\,\mathrm{ms}$.
+
+\subsection*{Declaración de uso de inteligencia artificial}
+La redacción de esta sección se realizó con apoyo de Claude (Anthropic), un asistente de inteligencia artificial. Las mediciones en la Raspberry Pi, la configuración del sistema y la revisión del contenido fueron realizadas por el autor.
