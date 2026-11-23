@@ -37,6 +37,18 @@ static void controls_snapshot(controls_report_t *dst) {
     }
 
     dst->buttons &= CONTROLS_BUTTON_MASK;
+#if JOY_SWAP_XY
+    { uint16_t t = dst->axis[0]; dst->axis[0] = dst->axis[1]; dst->axis[1] = t; }
+#endif
+#if JOY_INVERT_X
+    dst->axis[0] = 4095u - dst->axis[0];
+#endif
+#if JOY_INVERT_Y
+    dst->axis[1] = 4095u - dst->axis[1];
+#endif
+#if !Z_AXIS_ENABLED
+    dst->axis[2] = 2048u;   // Z sin potenciometro: centro fijo, evita ruido
+#endif
 }
 
 
@@ -247,11 +259,11 @@ static void dma_usb_init(void) {
 }
 
 // La CPU solo da la orden; la copia SRAM -> DPSRAM la ejecuta el DMA.
-static void dma_usb_refresh(void) {
+static void dma_usb_refresh(const controls_report_t *src) {
     volatile uint16_t *dst = epin_dpram_buffer();
     if (dst == NULL) return;
 
-    dma_channel_set_read_addr(s_dma_usb, (const void *)s_src, false);
+    dma_channel_set_read_addr(s_dma_usb, (const void *)src, false);
     dma_channel_set_write_addr(s_dma_usb, (void *)dst, false);
     dma_channel_set_trans_count(s_dma_usb, CONTROLS_REPORT_SIZE / 2, true); // dispara
     dma_channel_wait_for_finish_blocking(s_dma_usb); // ~100 ns
@@ -274,7 +286,7 @@ void usb_data_tx_task(void) {
         controls_snapshot(&snap);
         if (tud_hid_report(0, &snap, CONTROLS_REPORT_SIZE)) {
             // 2) El tercer DMA copia g_controls (SRAM) sobre el buffer del endpoint (DPSRAM)
-            dma_usb_refresh();
+            dma_usb_refresh(&snap);   // copia el snapshot YA corregido (swap/invert), no los ejes crudos
         }
     }
 }

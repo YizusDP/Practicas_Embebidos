@@ -10,13 +10,13 @@
 
 \textbf{Evidencia medida en el sistema final:}
 \begin{itemize}
-	\item \textbf{Firmware esclavo:} \texttt{firmware/main.c} (sin sistema operativo, lazo cooperativo con \texttt{\_\_wfi()}).
+	\item \textbf{Firmware esclavo:} \texttt{firmware/main.c} (sin sistema operativo, lazo cooperativo de $1\text{ ms}$ con \texttt{\_\_wfi()}).
 	\item \textbf{Sistema maestro:} \texttt{pi/instalar.sh} (configuración sobre kernel \texttt{6.18.0-rpt-rpi-v8} sin servidor gráfico X11/Wayland).
 \end{itemize}
 
 \textbf{Diferencias con lo planeado:} Ninguna. La separación física evitó que las interrupciones del planificador de Linux afectaran la lectura de botones o el envío de reportes USB HID.
 
-\textbf{Métricas:} Huella estática del nodo esclavo de $23{,}476\text{ B}$ en Flash ($1.1\%$) y $3{,}520\text{ B}$ en SRAM ($1.3\%$); arranque autónomo completo del nodo maestro en $\pend{XX.X}\text{ s}$ (\texttt{systemd-analyze time}).
+\textbf{Métricas:} Huella estática del nodo esclavo de $23{,}476\text{ B}$ en Flash ($1.1\%$) y $3{,}520\text{ B}$ en SRAM ($1.3\%$); arranque autónomo completo del nodo maestro en $18.88\text{ s}$ (\texttt{systemd-analyze time}: $2.751\text{ s}$ kernel + $16.124\text{ s}$ espacio de usuario).
 
 \subsection{Bitácora: Clase 11 — Comunicación entre Procesos (IPC)}
 \textbf{Autor:} Jiménez Reyes Alan Yael
@@ -25,13 +25,13 @@
 
 \textbf{Evidencia medida en el sistema final:}
 \begin{itemize}
-	\item \textbf{Identificación dinámica de ROM:} Para evitar falsos disparos al cambiar de juego, \texttt{pi/telemetria.py} supervisa la marca de tiempo (\texttt{st\_mtime}) del historial de RetroArch (\texttt{/home/konan/roms/historial.lpl}) y consulta por UDP (\texttt{READ\_CORE\_RAM}) a $60\text{ Hz}$ (temporizado con \texttt{time.monotonic()}) únicamente los títulos mapeados: \texttt{pacman.nes} (vidas en \texttt{0x067}), \texttt{pong.nes} (puntos en contra en \texttt{0x013}) y \texttt{tetris.nes} (fin de partida en \texttt{0x048 == 10}). Se evita explícitamente el comando \texttt{GET\_STATUS} por provocar fallo de segmentación en RetroArch 1.20.0.
-	\item \textbf{Envío de datagramas y temporización no bloqueante:} Ante un evento de juego, \texttt{telemetria.py} despacha datagramas independientes (\texttt{VIB 500}, \texttt{BUZ 2700 500}, \texttt{LED 1 1}, \texttt{LED 2 1}) hacia \texttt{pi/puente\_hid.py}, que los empaqueta en un reporte HID OUT de 8 bytes en formato \textit{little-endian} (\texttt{struct.pack('<BH', ...)} / \texttt{'<BHH'}). Mientras la Pico apaga motor y buzzer por hardware, \texttt{telemetria.py} programa el apagado de LEDs (\texttt{LED 1 0}, \texttt{LED 2 0}) $500\text{ ms}$ después sin detener el ciclo de $16.6\text{ ms}$.
+	\item \textbf{Identificación dinámica de ROM:} Para evitar falsos disparos al cambiar de juego, \texttt{pi/telemetria.py} supervisa la marca de tiempo (\texttt{st\_mtime}) del historial de RetroArch (\texttt{/opt/arcade/content\_history.lpl}) y consulta por UDP (\texttt{READ\_CORE\_RAM}) a $60\text{ Hz}$ (temporizado con \texttt{time.monotonic()}) únicamente los títulos mapeados: \texttt{pacman.nes} (vidas en \texttt{0x067}), \texttt{pong.nes} (puntos en contra en \texttt{0x013}) y \texttt{tetris.nes} (fin de partida en \texttt{0x048 == 10}). Se evita explícitamente el comando \texttt{GET\_STATUS} por provocar fallo de segmentación en RetroArch 1.20.0.
+	\item \textbf{Envío de datagramas y temporización no bloqueante:} Ante un evento de juego, \texttt{telemetria.py} despacha datagramas independientes (\texttt{VIB 500}, \texttt{BUZ 2700 500}, \texttt{LED 1 1}, \texttt{LED 2 1}) hacia \texttt{pi/puente\_hid.py}, que los empaqueta en un reporte HID OUT de 8 bytes en formato \textit{little-endian} (\texttt{struct.pack('<BH', ...)} / \texttt{'<BHH'}). Mientras la Pico apaga motor y buzzer por hardware, \texttt{telemetria.py} programa el apagado de LEDs (\texttt{LED 1 0}, \texttt{LED 2 0}) $500\text{ ms}$ después sin detener el ciclo de $16.67\text{ ms}$.
 \end{itemize}
 
-\textbf{Diferencias con lo planeado:} En el Avance 1 se propuso conectar RetroArch directamente a un socket UNIX y usar un puerto serial CDC adicional hacia la Pico. Se migró a UDP porque es la interfaz nativa de comandos de red de RetroArch, se incorporó la detección automática del juego activo mediante \texttt{historial.lpl} para soportar tres títulos distintos, y se sustituyó el puerto CDC por reportes HID OUT para reutilizar el enlace USB único de los controles.
+\textbf{Diferencias con lo planeado:} En el Avance 1 se propuso conectar RetroArch directamente a un socket UNIX y usar un puerto serial CDC adicional hacia la Pico. Se migró a UDP porque es la interfaz nativa de comandos de red de RetroArch, se incorporó la detección automática del juego activo mediante \texttt{content\_history.lpl} para soportar tres títulos distintos, y se sustituyó el puerto CDC por reportes HID OUT para reutilizar el enlace USB único de los controles.
 
-\textbf{Métricas:} Latencia de cambio de contexto IPC medida con \texttt{perf bench sched pipe}: $\pend{XX.X}\text{ }\mu\text{s}$; retardo desde evento UDP hasta señal PWM en el actuador: $\pend{XX.X}\text{ ms}$.
+\textbf{Métricas:} Latencia de cambio de contexto IPC medida con \texttt{perf bench sched pipe}: $4.62~\mu\text{s/op}$ ($216{,}412\text{ ops/s}$) bajo carga; entrega en el enlace HID de $2.24\text{ ms}$ en promedio ($4.1\text{ ms}$ máx.); retardo total desde evento UDP hasta señal PWM en el actuador de $23.1\text{ ms}$ típico ($45.8\text{ ms}$ en el peor caso).
 
 \subsection{Bitácora: Clase 12 — Periféricos Dedicados y Subsistemas de E/S}
 \textbf{Autor:} Jiménez Reyes Alan Yael
@@ -40,13 +40,13 @@
 
 \textbf{Evidencia medida en el sistema final:}
 \begin{itemize}
-	\item \textbf{Adquisición sin CPU:} \texttt{firmware/read\_74hc165.pio} genera las señales de reloj (\texttt{CLK}) y carga paralela (\texttt{LD}) hacia los dos registros 74HC165, transfiriendo 16 bits por DMA sin interrumpir a Core 0.
-	\item \textbf{Video directo:} \texttt{pantalla/config\_txt\_pantalla.txt} configura el controlador \texttt{panel-mipi-dbi} a $50\text{ MHz}$ sobre SPI0.
+	\item \textbf{Adquisición sin CPU:} \texttt{firmware/read\_74hc165.pio} (divisor \texttt{125}, $3{,}417$ ciclos por trama) genera las señales de reloj (\texttt{CLK}) y carga paralela (\texttt{LD}) hacia los dos registros 74HC165, transfiriendo tramas de 10 bits mediante dos canales DMA encadenados sin interrumpir a Core 0.
+	\item \textbf{Video directo:} \texttt{pantalla/config\_txt\_pantalla.txt} configura el controlador \texttt{panel-mipi-dbi} a $50\text{ MHz}$ sobre SPI0 ($18.3\text{ FPS}$ medidos).
 \end{itemize}
 
-\textbf{Diferencias con lo planeado:} Se ajustó el divisor fraccionario de reloj de la máquina PIO a \texttt{182.91f} para alinear exactamente el periodo de muestreo al criterio de $5.0\text{ ms}$ ($200\text{ Hz}$).
+\textbf{Diferencias con lo planeado:} Ninguna; el divisor entero de reloj \texttt{125} (reloj PIO de $1\text{ MHz}$) logra un periodo de muestreo exacto de $3.417\text{ ms}$ ($292.6\text{ Hz}$), superando con margen el criterio planeado de $5.0\text{ ms}$ ($200\text{ Hz}$).
 
-\textbf{Métricas:} Periodo de muestreo PIO medido en \texttt{GPIO17}: $\pend{5.00}\text{ ms}$ ($200\text{ Hz}$); latencia total extremo a extremo desde pulsación física de botón hasta llegada del evento HID en el nodo maestro: $\pend{XX.X}\text{ ms}$.
+\textbf{Métricas:} Periodo de muestreo PIO en \texttt{GPIO17}: $3.417\text{ ms}$ ($292.6\text{ Hz}$, \textit{jitter} determinista de $0\text{ ms}$); latencia total extremo a extremo desde pulsación física de botón hasta llegada del evento HID en el nodo maestro: $2.2\text{ ms}$ en el mejor caso y $7.65\text{ ms}$ en el peor caso ($\le 15\text{ ms}$).
 
 \subsection{Bitácora: Clase 20 — Programación Segura de Bajo Nivel y Serialización}
 \textbf{Autor:} Jiménez Reyes Alan Yael
@@ -68,19 +68,12 @@
 
 \textbf{Decisión:} Estructurar el software en cinco niveles arquitectónicos (Hardware físico, Drivers/HAL, Entorno/Kernel, Middleware/IPC y Aplicación/Orquestación) asignando cada módulo del repositorio a su capa correspondiente (Figura~\ref{fig:capas_modulos} y Tabla~\ref{tab:capas_app}), acotando el ciclo principal de cada nodo a plazos deterministas y delegando la recuperación ante bloqueos al \textit{watchdog} de hardware en la Pico y a \texttt{systemd} en la Pi 4.
 
-\begin{figure*}[!t]
-	\centering
-	\includegraphics[width=0.95\textwidth]{P23_diagrama_capas_clase22.png}
-	\caption{Arquitectura por capas y asignación de módulos del repositorio (\texttt{firmware/}, \texttt{pi/} y \texttt{pantalla/}) entre ambos nodos.}
-	\label{fig:capas_modulos}
-\end{figure*}
-
 \begin{table}[H]
 	\centering
 	\caption{Asignación de módulos del repositorio por capa de aplicación}
 	\label{tab:capas_app}
 	\footnotesize
-	\begin{tabular}{|p{1.8cm}|p{2.9cm}|p{2.7cm}|}
+	\begin{tabular}{|p{1.8cm}|p{2.8cm}|p{2.8cm}|}
 		\hline
 		\textbf{Capa} & \textbf{Módulos (Pico / RP2040)} & \textbf{Módulos (Pi 4 / Linux)} \\
 		\hline
@@ -95,10 +88,17 @@
 	\end{tabular}
 \end{table}
 
+\begin{figure*}[!t]
+	\centering
+	\includegraphics[width=0.95\textwidth]{P23_diagrama_capas_clase22.png}
+	\caption{Arquitectura por capas y asignación de módulos del repositorio (\texttt{firmware/}, \texttt{pi/} y \texttt{pantalla/}) entre ambos nodos.}
+	\label{fig:capas_modulos}
+\end{figure*}
+
 \textbf{Evidencia medida en el sistema final:}
 \begin{itemize}
-	\item \textbf{Ciclo y plazos:} El lazo de \texttt{firmware/main.c} opera cada \textbf{1 ms} ($1000\text{ Hz}$, sincronizado con \texttt{bInterval = 1 ms}) para cumplir el plazo de entrada $\le 15\text{ ms}$ (RNF1). En la Pi 4, RetroArch corre a $16.67\text{ ms}$ internos ($60\text{ Hz}$, limitado por SPI a $49.15\text{ ms}$, $18.3\text{ FPS}$ medidos) y \texttt{telemetria.py} sondea cada $16.6\text{ ms}$ mediante reloj monotónico para cumplir RNF2 ($\le 50\text{ ms}$).
-	\item \textbf{Recuperación ante falla de sensor:} En \texttt{main.c}, Core 0 supervisa cada $25\text{ ms}$ que los canales DMA de botones y ADC (\texttt{read\_adc\_is\_alive()}) sigan avanzando; si detecta $4$ revisiones consecutivas sin progreso, deja de alimentar el \textit{watchdog} de hardware y el RP2040 se reinicia automáticamente a los $250\text{ ms}$, reportando el motivo por \texttt{UART0} (\texttt{GP0}/\texttt{GP1}). En la Pi 4, \texttt{puente\_hid.py} reintenta abrir \texttt{/dev/arcade\_hid} cada $1\text{ s}$ ante desconexión USB y \texttt{systemd} (\texttt{Restart=always}) relanza cualquier servicio caído.
+	\item \textbf{Ciclo y plazos:} El lazo de \texttt{firmware/main.c} opera cada $1\text{ ms}$ ($1{,}000\text{ Hz}$, sincronizado con \texttt{bInterval = 1 ms}) para cumplir el plazo de entrada $\le 15\text{ ms}$ (RNF1; medido $7.65\text{ ms}$ en el peor caso). En la Pi 4, RetroArch corre a $16.67\text{ ms}$ internos ($60\text{ Hz}$, limitado por SPI a $49.15\text{ ms}$, $18.3\text{ FPS}$ medidos) y \texttt{telemetria.py} sondea cada $16.67\text{ ms}$ mediante reloj monotónico para cumplir RNF2 ($\le 50\text{ ms}$; medido $23.1\text{ ms}$ típico).
+	\item \textbf{Recuperación ante falla de sensor:} En \texttt{main.c}, Core 0 supervisa cada $25\text{ ms}$ que los canales DMA de botones y ADC (\texttt{read\_adc\_is\_alive()}) sigan avanzando; si detecta 4 revisiones consecutivas sin progreso, deja de alimentar el \textit{watchdog} de hardware y el RP2040 se reinicia automáticamente a los $250\text{ ms}$, reportando el motivo por \texttt{UART0} (\texttt{GP0}/\texttt{GP1}). En la Pi 4, \texttt{puente\_hid.py} reintenta abrir \texttt{/dev/arcade\_hid} cada $1\text{ s}$ ante desconexión USB y \texttt{systemd} (\texttt{Restart=always}) relanza cualquier servicio caído.
 \end{itemize}
 
 \textbf{Diferencias con lo planeado:} Se añadió la verificación explícita de progreso de ambos canales DMA cada $25\text{ ms}$ antes de refrescar el \textit{watchdog} para detectar bloqueos silenciosos de periféricos sin que la CPU principal esté colgada.
@@ -121,9 +121,9 @@
 \begin{enumerate}
 	\item \textbf{USB HID nativo + \texttt{evdev}/\texttt{hidraw} (Pico $\leftrightarrow$ Pi 4):} Transporta estados de control ($10\text{ B}$ cada $1\text{ ms}$) hacia \texttt{arcade-retroarch} (\texttt{Nice=-5}) y comandos de actuadores ($8\text{ B}$ \textit{little-endian} hacia \texttt{tud\_hid\_set\_report\_cb()}) usando los drivers estándar del kernel sin requerir puertos seriales extra.
 	\item \textbf{Socket UDP \texttt{AF\_INET} (\texttt{127.0.0.1:55355}):} Interfaz nativa de RetroArch; al ser sin conexión, permite que \texttt{arcade-telemetria} (\texttt{Nice=10}) sobreviva y reconecte al instante si RetroArch es reiniciado por \texttt{systemd}.
-	\item \textbf{Socket UNIX \texttt{AF\_UNIX SOCK\_DGRAM} (\texttt{/tmp/arcade\_act.sock}):} Comunica \texttt{telemetria.py} con el escritor único \texttt{arcade-puente} (\texttt{Nice=0}); preserva fronteras atómicas de mensaje sin delimitadores (a diferencia de una tubería \textit{pipe}), evita la pila TCP/IP ($\approx 15\text{--}20\text{ }\mu\text{s}$) y opera en RAM (\texttt{tmpfs}) sin desgastar la tarjeta microSD.
+	\item \textbf{Socket UNIX \texttt{AF\_UNIX SOCK\_DGRAM} (\texttt{/tmp/arcade\_act.sock}):} Comunica \texttt{telemetria.py} con el escritor único \texttt{arcade-puente} (\texttt{Nice=0}); preserva fronteras atómicas de mensaje sin delimitadores (a diferencia de una tubería \textit{pipe}), evita la pila TCP/IP ($\approx 15\text{--}20~\mu\text{s}$) y opera en RAM (\texttt{tmpfs}) sin desgastar la tarjeta microSD.
 \end{enumerate}
 
-\textbf{Diferencias con lo planeado (descarte de Memoria Compartida, D-Bus y MQTT):} Se descartó \textbf{memoria compartida} porque el ancho de banda de telemetría es bajo ($< 2\text{ KB/s}$) y un datagrama resuelve sincronización sin semáforos ni \textit{mutex}. Se descartó \textbf{D-Bus} por no existir sesión gráfica en Raspberry Pi OS Lite. Finalmente, \textbf{no se emplea MQTT} (por lo que no existen tópicos, niveles de QoS ni mensajes retenidos), ya que todos los procesos se ejecutan localmente en la misma Pi 4 y levantar un \textit{broker} (\texttt{mosquitto}) añadiría latencia de red y consumo de RAM innecesarios.
+\textbf{Diferencias con lo planeado (descarte de Memoria Compartida, D-Bus y MQTT):} Se descartó memoria compartida porque el ancho de banda de telemetría es bajo ($< 2\text{ KB/s}$) y un datagrama resuelve sincronización sin semáforos ni \textit{mutex}. Se descartó D-Bus por no existir sesión gráfica en Raspberry Pi OS Lite. Finalmente, no se emplea MQTT (por lo que no existen tópicos, niveles de QoS ni mensajes retenidos), ya que todos los procesos se ejecutan localmente en la misma Pi 4 y levantar un \textit{broker} (\texttt{mosquitto}) añadiría latencia de red y consumo de RAM innecesarios.
 
 \textbf{Métricas:} Tráfico IPC sostenible $< 2\text{ KB/s}$ en \texttt{tmpfs} con $0\%$ de pérdida de datagramas locales bajo carga nominal.
