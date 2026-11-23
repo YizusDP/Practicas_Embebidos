@@ -1,0 +1,45 @@
+% =====================================================================
+% Sección de Dorantes Mejía Emmanuel
+% Medición RF2 (ADC), memoria estática (Clase 10), Clase 20 y 21 (ADC)
+% =====================================================================
+
+\subsection{Medición RF2: Lectura Analógica de Eje (ADC)}
+\textbf{Autor:} Dorantes Mejía Emmanuel
+
+\textbf{Requisito RF2:} Resolución de conversión $\ge 10\text{ bits}$ con periodo de muestreo $\le 10\text{ ms}$ para el control proporcional del eje en \textit{Pong}.
+
+\textbf{Resultado construido (\texttt{firmware/read\_adc.c}):}
+\begin{itemize}
+	\item \textbf{Resolución:} $12\text{ bits}$ nativos del ADC del RP2040 (rango digital de $0$ a $4{,}095$).
+	\item \textbf{Frecuencia y periodo:} Muestreo continuo en modo \textit{round-robin} sobre cuatro canales (\texttt{ADC0}--\texttt{ADC3} en \texttt{GP26}--\texttt{GP28} más canal interno de diagnóstico) a $16{,}000$ conversiones totales por segundo ($4\text{ kHz}$ por canal), fijado mediante el divisor de reloj $48\text{ MHz} / 16{,}000 - 1 = 2{,}999$. Esto equivale a un periodo de actualización de \textbf{$0.25\text{ ms}$} por eje ($40$ veces más rápido que el límite de $10\text{ ms}$).
+	\item \textbf{Supervisión:} La función \texttt{read\_adc\_is\_alive()} verifica el avance de las transferencias DMA para habilitar el refresco del \textit{watchdog} en \texttt{main.c}.
+\end{itemize}
+
+\textbf{Veredicto:} \textbf{Cumplido} ($12\text{ bits}$ y $0.25\text{ ms}$ superan ampliamente los $10\text{ bits}$ y $10\text{ ms}$ exigidos).
+
+\subsection{Bitácora: Clase 10 — Gestión de Memoria Estática}
+\textbf{Autor:} Dorantes Mejía Emmanuel
+
+\textbf{Decisión:} Eliminar por completo la asignación dinámica de memoria (\texttt{malloc}/\texttt{free}) en el nodo esclavo, reservando todos los búferes de adquisición y comunicación de forma estática en tiempo de compilación.
+
+\textbf{Evidencia medida en el sistema final:}
+\begin{itemize}
+	\item \textbf{Alineación para anillo DMA:} El modo de envoltura circular (\textit{ring mode}) del controlador DMA del RP2040 exige tamaños potencia de dos y alineación en frontera de byte correspondiente. Por ello, se muestrean 4 canales de $16\text{ bits}$ ($4 \times 2 = 8 = 2^3\text{ bytes}$) y la estructura global se declara con \texttt{\_\_attribute\_\_((aligned(8)))} en \texttt{firmware/main.c} (línea 24).
+	\item \textbf{Huella estática verificada:} $23{,}476\text{ bytes}$ en Flash ($1.1\%$) y $3{,}520\text{ bytes}$ en SRAM ($1.3\%$), dejando más del $98\%$ de la memoria libre para pila y sin riesgo de fragmentación externa.
+\end{itemize}
+
+\textbf{Diferencias con lo planeado:} Ninguna; la estrategia estática garantizó determinismo estricto durante pruebas continuas de 10 horas.
+
+\subsection{Bitácora: Clases 20 y 21 — Subsistema ADC}
+\textbf{Autor:} Dorantes Mejía Emmanuel
+
+\textbf{Clase 20 (Tipos de datos y \texttt{volatile}):}
+\begin{itemize}
+	\item Cada conversión de $12\text{ bits}$ se almacena en el arreglo \texttt{uint16\_t axis[4]} dentro de la estructura empaquetada \texttt{controls\_report\_t} (\texttt{firmware/controls\_report.h}), permitiendo transferencias atómicas de palabra media (\texttt{DMA\_SIZE\_16} en \texttt{read\_adc.c}, línea 19).
+	\item El arreglo hereda el calificador \texttt{volatile} de \texttt{g\_controls} porque el controlador DMA actualiza sus elementos directamente en SRAM sin intervención del procesador.
+\end{itemize}
+
+\textbf{Clase 21 (Drivers de bajo nivel):}
+\begin{itemize}
+	\item Se emplean las bibliotecas \texttt{hardware/adc} y \texttt{hardware/dma} del Pico SDK (\texttt{firmware/read\_adc.c} y \texttt{read\_adc.h}), las cuales configuran directamente los registros del periférico RP2040. No se requirió un controlador personalizado debido a que el hardware incluye secuenciador \textit{round-robin}, cola FIFO y peticiones DREQ nativas hacia los dos canales DMA encadenados.
+\end{itemize}
