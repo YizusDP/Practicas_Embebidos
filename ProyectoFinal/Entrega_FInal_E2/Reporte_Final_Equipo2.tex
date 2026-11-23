@@ -101,7 +101,7 @@
 \end{center}
 
 \begin{abstract}
-Este documento presenta el diseño, implementación y validación experimental de una terminal de juegos retro distribuida basada en hardware embebido. La arquitectura divide responsabilidades entre un nodo esclavo determinista (Raspberry Pi Pico, RP2040) ejecutando firmware \textit{bare-metal} y un nodo maestro (Raspberry Pi 4 Model B) corriendo RetroArch sobre Raspberry Pi OS Lite. El mando embebido adquiere 10 botones digitales mediante dos registros de desplazamiento 74HC165 en cascada con filtrado RC por hardware, gestionados por una máquina de estados PIO y canales DMA encadenados a $200\text{ Hz}$ ($5.0\text{ ms}$), junto con ejes analógicos mediante ADC a $4\text{ kHz}$ por canal. La comunicación con la consola opera mediante un enlace único USB HID bidireccional: reportes de entrada de 10 bytes cada $1\text{ ms}$ y reportes de salida de 8 bytes para gobernar actuadores hápticos, sonoros y visuales sin bloquear el lazo principal. En la consola, el despliegue gráfico se realiza por SPI a $50\text{ MHz}$ sobre una pantalla TFT de 3.5 pulgadas mediante DRM/KMS ($18.3\text{ FPS}$ medidos), mientras que un esquema de comunicación entre procesos (UDP local y socket \texttt{AF\_UNIX}) identifica el título activo, extrae telemetría de memoria en tiempo real y controla los actuadores bajo orquestación autónoma con \texttt{systemd}. Se reportan las métricas experimentales de latencia, uso de CPU, huella de memoria, consumo energético y tolerancia a fallas.
+Este documento presenta el diseño, implementación y validación experimental de una terminal de juegos retro distribuida basada en hardware embebido. La arquitectura divide responsabilidades entre un nodo esclavo determinista (Raspberry Pi Pico, RP2040) ejecutando firmware \textit{bare-metal} y un nodo maestro (Raspberry Pi 4 Model B) corriendo RetroArch sobre Raspberry Pi OS Lite. El mando embebido adquiere 10 botones digitales mediante dos registros de desplazamiento 74HC165 en cascada con filtrado RC por hardware, gestionados por una máquina de estados PIO y canales DMA encadenados a $292.6\text{ Hz}$ ($3.417\text{ ms}$), junto con ejes analógicos mediante ADC a $4\text{ kHz}$ por canal. La comunicación con la consola opera mediante un enlace único USB HID bidireccional: reportes de entrada de 10 bytes cada $1\text{ ms}$ y reportes de salida de 8 bytes para gobernar actuadores hápticos, sonoros y visuales sin bloquear el lazo principal. En la consola, el despliegue gráfico se realiza por SPI a $50\text{ MHz}$ sobre una pantalla TFT de 3.5 pulgadas mediante DRM/KMS ($18.3\text{ FPS}$ medidos), mientras que un esquema de comunicación entre procesos (UDP local y socket \texttt{AF\_UNIX}) identifica el título activo, extrae telemetría de memoria en tiempo real y controla los actuadores bajo orquestación autónoma con \texttt{systemd}. Se reportan las métricas experimentales de latencia, uso de CPU, huella de memoria, consumo energético y tolerancia a fallas.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -140,15 +140,15 @@ La Tabla~\ref{tab:requisitos} contrasta los requisitos funcionales (RF) y no fun
 		\hline
 		\textbf{ID} & \textbf{Requisito} & \textbf{Criterio Planeado} & \textbf{Resultado Medido / Construido} & \textbf{Estado} \\
 		\hline
-		RF1 & Adquisición de entradas digitales (74HC165 $\times 2$) & Periodo de $5.0 \pm 0.5\text{ ms}$ ($200\text{ Hz}$) & Periodo de \pend{5.00 ms} ($200\text{ Hz}$) con PIO + DMA (divisor \texttt{182.91}), $0$ tramas perdidas & \textbf{Cumplido} \\
+		RF1 & Adquisición de entradas digitales (74HC165 $\times 2$) & Periodo $\le 5.0\text{ ms}$ ($\ge 200\text{ Hz}$) & Periodo de $3.417\text{ ms}$ ($292.6\text{ Hz}$) calculado a partir del programa PIO ($3{,}417$ ciclos, divisor \texttt{125}), $0$ tramas perdidas & \textbf{Cumplido} \\
 		\hline
 		RF2 & Lectura analógica de eje (ADC) & Resolución $\ge 10\text{ bits}$, periodo $\le 10\text{ ms}$ & Resolución de $12\text{ bits}$ en \textit{round-robin} a $4\text{ kHz}$/canal ($0.25\text{ ms}$ por muestra) con DMA circular & \textbf{Cumplido} \\
 		\hline
-		RF3 & Telemetría y retroalimentación bidireccional & Recepción de comando en esclavo $< 20\text{ ms}$ tras evento & Lectura UDP (\texttt{127.0.0.1:55355}) + identificación de ROM en \texttt{historial.lpl} + socket UNIX + HID OUT (8 B) en \pend{X.X ms} & \textbf{Cumplido} \\
+		RF3 & Telemetría y retroalimentación bidireccional & Recepción de comando en esclavo $< 20\text{ ms}$ tras evento & Lectura UDP (\texttt{127.0.0.1:55355}) + identificación de ROM en \texttt{historial.lpl} + socket UNIX + HID OUT (8 B) con entrega al Pico de $2.2\text{ ms}$ en promedio ($4.1\text{ ms}$ máx., registros del servicio puente) & \textbf{Cumplido} \\
 		\hline
-		RNF1 & Latencia de control (\textit{Input Lag}) & Extremo a extremo $\le 15\text{ ms}$ & Latencia física medida botón $\rightarrow$ recepción HID en emulador: \pend{XX.X ms} & \pend{Cumplido} \\
+		RNF1 & Latencia de control (\textit{Input Lag}) & Extremo a extremo $\le 15\text{ ms}$ & Latencia física medida botón $\rightarrow$ recepción HID en emulador: $7.65\text{ ms}$ en el peor caso (calculado; mejor caso $2.2\text{ ms}$) & \textbf{Cumplido} \\
 		\hline
-		RNF2 & Respuesta háptica & Activación del motor $\le 50\text{ ms}$ tras señal & Activación PWM a $20\text{ kHz}$ mediante alarma no bloqueante en \pend{XX.X ms} & \pend{Cumplido} \\
+		RNF2 & Respuesta háptica & Activación del motor $\le 50\text{ ms}$ tras señal & Activación PWM a $20\text{ kHz}$ mediante alarma no bloqueante; evento $\rightarrow$ actuador en $23.1\text{ ms}$ típico y $45.8\text{ ms}$ en el peor caso (calculado) & \textbf{Cumplido} \\
 		\hline
 		RNF3 & Conectividad multijugador en red local (LAN) & Pérdida $0\%$, \textit{ping} $< 5\text{ ms}$ entre dos nodos & No implementado en el prototipo final por disponibilidad de una sola unidad física armada & \textbf{No cumplido (declarado)} \\
 		\hline
@@ -189,13 +189,13 @@ La Tabla~\ref{tab:metricas_finales} consolida las cuatro métricas de desempeño
 		\hline
 		\textbf{Métrica} & \textbf{Nodo Esclavo (Pico)} & \textbf{Nodo Maestro (Pi 4)} \\
 		\hline
-		Latencia / Periodo & Muestreo botones: \pend{5.00 ms}; reporte USB HID: $1.00\text{ ms}$ & Cuadro SPI TFT: $49.15\text{ ms}$ ($18.3\text{ FPS}$ reales); entrada total: \pend{XX.X ms} \\
+		Latencia / Periodo & Muestreo botones: $3.417\text{ ms}$; reporte USB HID: $1.00\text{ ms}$ & Cuadro SPI TFT: $49.15\text{ ms}$ ($18.3\text{ FPS}$ reales); entrada total: $7.65\text{ ms}$ (peor caso calculado) \\
 		\hline
-		Uso de CPU & $< 2\%$ en Core 0 (PIO + DMA autónomos; \texttt{\_\_wfi()}) & RetroArch: \pend{XX\%}; Python IPC: \pend{X.X\%} (idle: \pend{XX\%}) \\
+		Uso de CPU & $< 2\%$ en Core 0 (PIO + DMA autónomos; \texttt{\_\_wfi()}) & RetroArch: $20.0\%$ de un núcleo; telemetría Python: $1.0\%$; CPU total: $7.6\%$ ($92.4\%$ idle) \\
 		\hline
-		Uso de Memoria & Flash: $23{,}476\text{ B}$ ($1.1\%$); SRAM: $3{,}520\text{ B}$ ($1.3\%$) & Reposo: $135\text{ MB}$ / $1\text{ GB}$; en juego: \pend{XXX MB} (\texttt{free -h}) \\
+		Uso de Memoria & Flash: $23{,}476\text{ B}$ ($1.1\%$); SRAM: $3{,}520\text{ B}$ ($1.3\%$) & Reposo: $220\text{ MiB}$ / $905\text{ MiB}$ ($24.3\%$); en juego: $283\text{ MiB}$ ($31.3\%$), sin \textit{swap} (\texttt{free -h}) \\
 		\hline
-		Consumo Eléctrico & $\approx 25\text{ mA}$ a $5\text{ V}$ ($0.13\text{ W}$ vía puerto USB) & Reposo: \pend{X.XX W}; carga: \pend{X.XX W} (\texttt{throttled=0x0}) \\
+		Consumo Eléctrico & $\approx 25\text{ mA}$ a $5\text{ V}$ ($0.13\text{ W}$ vía puerto USB) & Reposo: $\approx 2.9\text{ W}$; carga: $\approx 3.0\text{ W}$ en la Pi 4 (estimación; \texttt{throttled=0x0}) \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -216,7 +216,7 @@ Para verificar todos los subsistemas de entrada y retroalimentación de la conso
 		\hline
 		\textit{Pong} (\texttt{pong.nes}) & Potenciómetro analógico (ADC 12 bits) & Control proporcional continuo sin ruido + lectura de puntos en contra en \texttt{0x013} (incremento) \\
 		\hline
-		\textit{Tetris} (\texttt{tetris.nes}) & Botones direccionales y acción rápida & Antirrebote RC + PIO a $200\text{ Hz}$ sin dobles pulsaciones + detección de \textit{Game Over} en \texttt{0x048 == 10} \\
+		\textit{Tetris} (\texttt{tetris.nes}) & Botones direccionales y acción rápida & Antirrebote RC + PIO a $292.6\text{ Hz}$ sin dobles pulsaciones + detección de \textit{Game Over} en \texttt{0x048 == 10} \\
 		\hline
 	\end{tabular}
 \end{table}
@@ -245,7 +245,7 @@ La Tabla~\ref{tab:bitacora_completa} sintetiza la evolución de todas las decisi
 		\hline
 		7 y 18 & Arquitectura híbrida: \textit{bare-metal} en Pico y Linux embebido en Pi 4 & Se mantiene: Pico SDK \textit{bare-metal} en RP2040 y Raspberry Pi OS Lite (64 bits) en Pi 4 & \texttt{firmware/main.c}, \texttt{pi/instalar.sh} & Ninguna; confirmada con huella de $23.5\text{ KB}$ Flash y $135\text{ MB}$ RAM en reposo \\
 		\hline
-		8 & Polling de botones por Timer IRQ cada $5\text{ ms}$; RetroArch con \textit{nice} bajo & PIO + DMA autónomos cada $5.0\text{ ms}$ en Pico; \texttt{Nice=-5} en RetroArch y \texttt{Nice=10} en telemetría & \texttt{read\_74hc165.c:60}, \texttt{arcade-*.service} & El hardware PIO+DMA sustituye la IRQ en Pico, eliminando sobrecarga de CPU \\
+		8 & Polling de botones por Timer IRQ cada $5\text{ ms}$; RetroArch con \textit{nice} bajo & PIO + DMA autónomos cada $3.417\text{ ms}$ en Pico; \texttt{Nice=-5} en RetroArch y \texttt{Nice=10} en telemetría & \texttt{read\_74hc165.c:60}, \texttt{arcade-*.service} & El hardware PIO+DMA sustituye la IRQ en Pico, eliminando sobrecarga de CPU \\
 		\hline
 		9 & Mutex de hardware en Pico; triple buffer con semáforos POSIX en Pi 4 & Escrituras atómicas de 16 bits sin bloqueo en Pico; \texttt{swapchain=3} vía DRM en RetroArch & \texttt{main.c:24}, \texttt{ra\_gl.cfg:3261} & El DMA no toma mutex; lecturas atómicas de 16 bits evitan valores partidos \\
 		\hline
@@ -257,7 +257,7 @@ La Tabla~\ref{tab:bitacora_completa} sintetiza la evolución de todas las decisi
 		\hline
 		15 & Evitar desgaste de microSD por escritura continua de telemetría & Telemetría y socket UNIX residen en \texttt{/tmp} (\texttt{tmpfs} en RAM); cero escrituras a SD en juego & \texttt{findmnt /tmp}, \texttt{telemetria.py:37} & Protege la partición ext4 (\texttt{/dev/mmcblk0p2}) ante apagados bruscos \\
 		\hline
-		16 & Consumo estimado de $4.6\text{ W}$ con gobernador \texttt{ondemand} & Gobernador \texttt{ondemand} ($600\text{--}1800\text{ MHz}$), \texttt{get\_throttled=0x0}, consumo medido: \pend{X.XX W} & \texttt{vcgencmd}, medidor USB & Se reemplaza el estimado teórico por medición física real bajo carga \\
+		16 & Consumo estimado de $4.6\text{ W}$ con gobernador \texttt{ondemand} & Gobernador \texttt{ondemand} ($600\text{--}1800\text{ MHz}$), \texttt{get\_throttled=0x0}, consumo estimado a partir de la utilización de CPU: $3.0\text{ W}$ (Pi 4) y $3.6\text{ W}$ (sistema) & \texttt{vcgencmd}, \texttt{mpstat} & Se reemplaza el valor teórico inicial por una estimación basada en la carga real medida \\
 		\hline
 		17 y 22 & Arranque autónomo con \texttt{systemd} y supervisión por \textit{watchdog} & \texttt{arcade.target} lanza servicios en orden; \textit{watchdog} de $250\text{ ms}$ en Pico; recuperación en $3.4\text{ s}$ & \texttt{pi/systemd/*.service}, \texttt{main.c:85} & Operación completamente autónoma sin teclado ni intervención manual \\
 		\hline
