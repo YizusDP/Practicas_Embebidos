@@ -31,4 +31,10 @@ typedef struct {
 _Static_assert(sizeof(controls_report_t) == CONTROLS_REPORT_SIZE, "controls_report_t debe medir 10 bytes");
 
 
+
+// Correccion por montaje fisico del joystick
+#define JOY_SWAP_XY   1
+#define JOY_INVERT_X  1
+#define JOY_INVERT_Y  0
+#define Z_AXIS_ENABLED 0   // 0 = Z fijo al centro (sin potenciometro conectado)
 #endif /* CONTROLS_REPORT_H */
