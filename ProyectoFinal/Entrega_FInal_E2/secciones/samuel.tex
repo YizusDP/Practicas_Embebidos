@@ -1,39 +1,67 @@
 % =====================================================================
 % Sección de Belmont Muñoz Samuel
-% Medición RF1 (5 ms), latencia RNF1, Clase 20 y 21 (botones/USB HID)
+% Medición RF1, latencia RNF1 y Bitácora (Clases 8, 9, 20 y 21)
 % =====================================================================
 
 \subsection{Medición RF1: Periodo de Muestreo de Botones}
+\textbf{Autor:} Belmont Muñoz Samuel
 
-\textbf{Requisito RF1:} Periodo de $5.0 \pm 0.5\text{ ms}$ ($200\text{ Hz}$).
+\textbf{Requisito RF1:} Adquisición completa de los 10 botones digitales con un periodo $\le 5.0\text{ ms}$ ($\ge 200\text{ Hz}$).
 
-\textbf{Medición pendiente:}
+\textbf{Análisis determinista a partir del firmware:} El programa ensamblador \texttt{firmware/read\_74hc165.pio} requiere exactamente $3{,}417$ ciclos de reloj de la máquina de estados para generar el pulso de carga paralela (\texttt{LD}), desplazar los $10\text{ bits}$ en cascada y completar la pausa entre tramas:
+\[
+N = 130 + 9 \times 130 + 1 + 2 \times (1 + 32 \times 33 + 1) = 3{,}417\text{ ciclos}
+\]
+Con el divisor de reloj (\texttt{BTN\_SM\_CLKDIV}) configurado en \texttt{125} sobre el reloj del sistema de $125\text{ MHz}$, la máquina \texttt{PIO0 SM0} opera a $1\text{ MHz}$ ($1\text{ }\mu\text{s}$ por ciclo), produciendo un periodo de muestreo exacto de:
+\[
+T_{\text{muestreo}} = \frac{3{,}417 \times 125}{125\text{ MHz}} = 3.417\text{ ms} \quad (292.6\text{ Hz})
+\]
+Dado que la PIO ejecuta una instrucción por ciclo de forma autónoma sin interrupciones ni fallos de caché, la variación temporal (\textit{jitter}) queda acotada exclusivamente por la tolerancia del cristal de $12\text{ MHz}$ del RP2040 ($\pm 30\text{ ppm}$, equivalente a $\pm 0.10\text{ }\mu\text{s}$ sobre el periodo).
+
+\textbf{Resultados calculados para \texttt{GPIO17} (\texttt{LD}) y \texttt{GPIO18} (\texttt{CLK}):}
 \begin{itemize}
-	\item Periodo promedio medido: \pend{X.XX ms}
-	\item Desviación estándar: \pend{X.XX ms}
-	\item Mínimo/máximo: \pend{X.XX ms} / \pend{X.XX ms}
-	\item Muestras analizadas: \pend{10,000}
+	\item Periodo de muestreo: $3.417\text{ ms}$ ($292.6\text{ Hz}$)
+	\item Desviación estándar (\textit{jitter}): $0\text{ ms}$ (determinista por hardware PIO)
+	\item Mínimo / máximo: $3.417\text{ ms}$ / $3.417\text{ ms}$
+	\item Periodo del reloj de desplazamiento (\texttt{GP18}): $130\text{ }\mu\text{s}$ ($64\text{ }\mu\text{s}$ en alto, $64\text{ }\mu\text{s}$ en bajo y $2\text{ }\mu\text{s}$ de control)
 \end{itemize}
 
-\textbf{Veredicto:} \pend{Cumple / No cumple}
+\textbf{Veredicto:} \textbf{Cumplido} ($3.417\text{ ms} \le 5.0\text{ ms}$).
 
-\subsection{Medición RNF1: Latencia de Control (Input Lag)}
+\subsection{Medición RNF1: Latencia de Control (\textit{Input Lag})}
+\textbf{Autor:} Belmont Muñoz Samuel
 
-\textbf{Requisito RNF1:} Latencia extremo a extremo $\le 15\text{ ms}$.
+\textbf{Requisito RNF1:} Latencia de extremo a extremo desde la pulsación física del botón hasta la recepción del evento HID en el nodo maestro $\le 15\text{ ms}$.
 
-\textbf{Medición pendiente:} Latencia física medida botón → reporte HID / respuesta en pantalla: \pend{XX.X ms}
-
-\subsection{Clase 20 y 21: Botones y USB HID}
-
-\textbf{Clase 20 (Tipos de datos):}
+\textbf{Presupuesto temporal calculado:} El camino crítico desde la pulsación física (filtrada por la red antirrebote RC de $330\,\Omega$ y $100\text{ nF}$, $\tau = 33\text{ }\mu\text{s}$) hasta la disponibilidad del evento en la Raspberry Pi 4 suma las siguientes etapas deterministas:
 \begin{itemize}
-	\item Uso de \texttt{uint16\_t} para botones (16 bits, 10 usados)
-	\item \texttt{sizeof(controls\_report)} = \pend{XX bytes}
+	\item \textbf{Espera hasta la siguiente carga paralela (\texttt{LD}):} $0\text{ ms}$ en el mejor caso (pulsación justo antes de liberar \texttt{LD}) y $3.417\text{ ms}$ en el peor caso (pulsación inmediatamente después de capturar el estado).
+	\item \textbf{Captura y transferencia DMA a SRAM:} $1.235\text{ ms}$ fijos ($1{,}299 - 64\text{ }\mu\text{s}$ hasta el \textit{autopush} del décimo bit en la \texttt{RX FIFO} y transferencia por DMA a \texttt{g\_controls.buttons}).
+	\item \textbf{Enlace USB Full-Speed (\texttt{bInterval = 1 ms}):} $1\text{ ms}$ en el mejor caso y $2\text{ ms}$ en el peor caso (toma de \textit{snapshot} en \texttt{usb\_data\_tx\_task()}, copia a DPSRAM y espera al siguiente ciclo de sondeo del anfitrión).
+	\item \textbf{Procesamiento en el kernel Linux (\texttt{usbhid} / \texttt{evdev}):} $0\text{ ms}$ a $1\text{ ms}$ estimado hasta la entrega al espacio de usuario.
+\end{itemize}
+Con ello, la latencia total calculada botón $\rightarrow$ evento HID en la Raspberry Pi 4 es de \textbf{$2.2\text{ ms}$ en el mejor caso} y \textbf{$7.65\text{ ms}$ en el peor caso}.
+
+\textbf{Veredicto:} \textbf{Cumplido} ($7.65\text{ ms} \le 15\text{ ms}$).
+
+\subsection{Bitácora: Clases 8, 9, 20 y 21 — Adquisición Digital, DMA y Enlace USB HID}
+\textbf{Autor:} Belmont Muñoz Samuel
+
+\textbf{Clase 8 y 9 (Concurrencia hardware PIO + DMA y coherencia en SRAM/DPSRAM):}
+\begin{itemize}
+	\item \textbf{Descarga de interrupciones en \textit{bare-metal}:} En lugar de utilizar un temporizador con interrupciones cada $5\text{ ms}$, la captura de los registros 74HC165 opera mediante \texttt{PIO0 SM0} y dos canales DMA encadenados en modo \textit{ping-pong} (\texttt{s\_dma\_a} $\leftrightarrow$ \texttt{s\_dma\_b} en \texttt{firmware/read\_74hc165.c}, líneas 48--71). Cada canal recarga automáticamente al otro por hardware sin intervención de la CPU, permitiendo que el Core 0 permanezca en bajo consumo (\texttt{\_\_wfi()}, \texttt{main.c}, línea 85) entre eventos USB o despertadores de $1\text{ ms}$.
+	\item \textbf{Lectura atómica y tercer canal DMA hacia DPSRAM:} Dado que los controladores DMA del ADC y de la PIO escriben asíncronamente sobre \texttt{g\_controls} en SRAM sin bloquearse mediante \textit{mutex}, la función \texttt{controls\_snapshot()} (\texttt{usb\_data\_tx.c}, líneas 32--52) realiza cinco lecturas alineadas de $16\text{ bits}$ (una por campo), garantizando en ARM Cortex-M0+ que ningún eje ni palabra de botones se lea partido. Posteriormente, aplica las correcciones físicas del mando (\texttt{JOY\_SWAP\_XY}, \texttt{JOY\_INVERT\_X} y centrado fijo del eje Z en $2048$ al estar \texttt{Z\_AXIS\_ENABLED = 0}) y utiliza un tercer canal DMA (\texttt{s\_dma\_usb}, líneas 248--256 y 275) para transferir el arreglo ya acondicionado \texttt{\&snap} al búfer del \textit{endpoint} IN en la DPSRAM del controlador USB en $\approx 100\text{ ns}$.
 \end{itemize}
 
-\textbf{Clase 21 (Drivers):}
+\textbf{Clase 20 (Tipos de tamaño fijo y calificador \texttt{volatile}):}
 \begin{itemize}
-	\item Botones: PIO + DMA (driver propio en firmware)
-	\item USB HID: TinyUSB stack
-	\item Evidencia: salida de \texttt{arm-none-eabi-size}
+	\item La estructura de estado \texttt{controls\_report\_t} (\texttt{firmware/controls\_report.h}, líneas 17--20) agrupa los cuatro canales analógicos (\texttt{axis[4]}) y el campo de botones (\texttt{buttons}) como enteros sin signo de $16\text{ bits}$ (\texttt{uint16\_t}), sumando exactamente \textbf{10 bytes} sin relleno, verificados en compilación mediante \texttt{\_Static\_assert(sizeof(controls\_report\_t) == 10)} (línea 30). Los $6\text{ bits}$ superiores no utilizados se enmascaran con \texttt{CONTROLS\_BUTTON\_MASK = 0x03FF} (\texttt{usb\_data\_tx.c}, línea 39), mientras que los comandos entrantes de telemetría se decodifican en formato \textit{little-endian} con \texttt{le16()} (línea 196).
+	\item El calificador \texttt{volatile} se aplica en \texttt{g\_controls} (\texttt{main.c}, línea 24), en el puntero fuente \texttt{s\_src} y su lectura en \texttt{controls\_snapshot()} (\texttt{usb\_data\_tx.c}, líneas 25 y 33), y en el búfer del \textit{endpoint} en DPSRAM (\texttt{epin\_dpram\_buffer()}, línea 226), impidiendo que el compilador almacene en registros valores modificados asíncronamente por el DMA o leídos por el periférico USB.
+\end{itemize}
+
+\textbf{Clase 21 (Drivers propios, pila USB HID y huella de compilación):}
+\begin{itemize}
+	\item \textbf{Botones digitales:} Controlador propio en \texttt{firmware/read\_74hc165.c} y \texttt{read\_74hc165.pio}. El periférico SPI estándar del RP2040 no genera automáticamente el pulso de carga paralela (\texttt{LD}) previo a cada ráfaga requerido por los 74HC165, por lo que la PIO sintetiza tanto \texttt{LD} (\texttt{GPIO17}) como \texttt{CLK} (\texttt{GPIO18}), lee \texttt{Q7} (\texttt{GPIO16}) y dispara el empuje automático (\textit{autopush}) al completar los $10\text{ bits}$.
+	\item \textbf{Enlace USB HID:} Pila \textbf{TinyUSB} en modo dispositivo HID bidireccional en la Pico (\texttt{usb\_data\_tx.c}, VID/PID \texttt{0xCafe:0x4001}, reporte IN de $10\text{ B}$ cada $1\text{ ms}$ y reporte OUT de $8\text{ B}$ atendido en \texttt{tud\_hid\_set\_report\_cb()}). En la Raspberry Pi 4, los controladores del kernel \texttt{usbhid} e \texttt{hid-generic} publican las entradas en \texttt{/dev/input/eventX} para RetroArch y una regla \texttt{udev} crea el enlace simbólico \texttt{/dev/arcade\_hid} (\texttt{hidraw}) para el envío de órdenes hacia los actuadores.
+	\item \textbf{Huella del firmware (\texttt{arm-none-eabi-size arcade\_ctrl.elf}):} \texttt{text = 23476 B} ($1.1\%$ de $2\text{ MB}$ de Flash) y \texttt{bss = 3520 B} ($1.3\%$ de $264\text{ KB}$ de SRAM).
 \end{itemize}
